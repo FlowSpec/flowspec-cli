@@ -1,0 +1,293 @@
+[1m[34mFlowSpec 验证报告[0m
+==================================================
+
+[1m📊 汇总统计[0m
+  总计: [1m12[0m 个 ServiceSpec
+  [32m✅ 成功: [1m0[0m 个[0m (0.0%)
+  [31m❌ 失败: [1m4[0m 个[0m (33.3%)
+  [33m⏭️  跳过: [1m8[0m 个[0m (66.7%)
+
+[36m⚡ 性能指标[0m
+  处理速度: [36m50112.96[0m specs/秒
+  内存使用: [36m1.82[0m MB
+  并发工作线程: [36m4[0m 个
+  断言评估: [36m8[0m 个
+  ⏱️  执行时间: [35m239.459µs[0m
+  平均处理时间: [35m59.6µs[0m/spec
+
+[1m🔍 详细结果[0m
+──────────────────────────────────────────────────
+
+[36m❌ 失败的验证 (4 个)[0m
+[2m[1/4][0m ❌ [1mmixedGetUser[0m ([31mFAILED[0m)
+   ⏱️  执行时间: [2m155.25µs[0m
+   🎯 匹配的 Span: [36mspan002[0m
+   📊 断言统计: [1m2[0m 总计, [2m0[0m 通过, [31m2[0m 失败
+   [31m❌ 前置条件:[0m [2m(0/1 通过)[0m
+     [31m❌[0m Precondition assertion failed in span 'mixedGetUser' (ID: span002)
+Assertion: {"valid_method":{"==":[{"var":"http_method"},"GET"]}}
+Expected: true (type: bool)
+Actual: false (type: bool)
+JSONLogic Result: Expected true, Got false
+Span Status: OK - OK
+Relevant Span Attributes:
+  http.method: GET
+  operation.id: mixedGetUser
+Trace ID: mixed123abc456def
+
+        [2m表达式:[0m [36m{"valid_method":{"==":[{"var":"http_method"},"GET"]}}[0m
+        [32m期望:[0m [1mtrue[0m [2m(bool)[0m
+        [31m实际:[0m [1mfalse[0m [2m(bool)[0m
+        [33m💡 失败原因:[0m JSONLogic evaluation error: The operator "valid_method" is not supported
+        [36m🔍 上下文信息:[0m
+          Span 名称: [36mmixedGetUser[0m
+          Span ID: [2mspan002[0m
+          状态: [32mOK[0m - OK
+        [33m💡 建议:[0m
+          [2m1.[0m Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior
+          [2m2.[0m Precondition failures may indicate that the service was called with unexpected input parameters
+        [2m────────────────────────────────────────[0m
+   [31m❌ 后置条件:[0m [2m(0/1 通过)[0m
+     [31m❌[0m Postcondition assertion failed in span 'mixedGetUser' (ID: span002)
+Assertion: {"success_status":{"==":[{"var":"span.status.code"},"OK"]}}
+Expected: true (type: bool)
+Actual: false (type: bool)
+JSONLogic Result: Expected true, Got false
+Span Status: OK - OK
+Relevant Span Attributes:
+  http.method: GET
+  operation.id: mixedGetUser
+Trace ID: mixed123abc456def
+
+        [2m表达式:[0m [36m{"success_status":{"==":[{"var":"span.status.code"},"OK"]}}[0m
+        [32m期望:[0m [1mtrue[0m [2m(bool)[0m
+        [31m实际:[0m [1mfalse[0m [2m(bool)[0m
+        [33m💡 失败原因:[0m JSONLogic evaluation error: The operator "success_status" is not supported
+        [36m🔍 上下文信息:[0m
+          Span 名称: [36mmixedGetUser[0m
+          Span ID: [2mspan002[0m
+          状态: [32mOK[0m - OK
+        [33m💡 建议:[0m
+          [2m1.[0m Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior
+          [2m2.[0m Postcondition failures may indicate that the service behavior has changed or the assertion needs updating
+        [2m────────────────────────────────────────[0m
+
+[2m[2/4][0m ❌ [1mmixedUpdateUser[0m ([31mFAILED[0m)
+   ⏱️  执行时间: [2m150.125µs[0m
+   🎯 匹配的 Span: [36mspan003[0m
+   📊 断言统计: [1m2[0m 总计, [2m0[0m 通过, [31m2[0m 失败
+   [31m❌ 前置条件:[0m [2m(0/1 通过)[0m
+     [31m❌[0m Precondition assertion failed in span 'mixedUpdateUser' (ID: span003)
+Assertion: {"valid_method":{"==":[{"var":"http_method"},"PUT"]}}
+Expected: true (type: bool)
+Actual: false (type: bool)
+JSONLogic Result: Expected true, Got false
+Span Status: ERROR - ERROR
+Relevant Span Attributes:
+  http.method: PUT
+  operation.id: mixedUpdateUser
+Trace ID: mixed123abc456def
+
+        [2m表达式:[0m [36m{"valid_method":{"==":[{"var":"http_method"},"PUT"]}}[0m
+        [32m期望:[0m [1mtrue[0m [2m(bool)[0m
+        [31m实际:[0m [1mfalse[0m [2m(bool)[0m
+        [33m💡 失败原因:[0m JSONLogic evaluation error: The operator "valid_method" is not supported
+        [36m🔍 上下文信息:[0m
+          Span 名称: [36mmixedUpdateUser[0m
+          Span ID: [2mspan003[0m
+          状态: [31mERROR[0m - ERROR
+        [33m💡 建议:[0m
+          [2m1.[0m The span has an error status - consider checking if this affects the expected behavior
+          [2m2.[0m Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior
+          [2m3.[0m Precondition failures may indicate that the service was called with unexpected input parameters
+        [2m────────────────────────────────────────[0m
+   [31m❌ 后置条件:[0m [2m(0/1 通过)[0m
+     [31m❌[0m Postcondition assertion failed in span 'mixedUpdateUser' (ID: span003)
+Assertion: {"success_status":{"==":[{"var":"span.status.code"},"OK"]}}
+Expected: true (type: bool)
+Actual: false (type: bool)
+JSONLogic Result: Expected true, Got false
+Span Status: ERROR - ERROR
+Relevant Span Attributes:
+  http.method: PUT
+  operation.id: mixedUpdateUser
+Trace ID: mixed123abc456def
+
+        [2m表达式:[0m [36m{"success_status":{"==":[{"var":"span.status.code"},"OK"]}}[0m
+        [32m期望:[0m [1mtrue[0m [2m(bool)[0m
+        [31m实际:[0m [1mfalse[0m [2m(bool)[0m
+        [33m💡 失败原因:[0m JSONLogic evaluation error: The operator "success_status" is not supported
+        [36m🔍 上下文信息:[0m
+          Span 名称: [36mmixedUpdateUser[0m
+          Span ID: [2mspan003[0m
+          状态: [31mERROR[0m - ERROR
+        [33m💡 建议:[0m
+          [2m1.[0m The span has an error status - consider checking if this affects the expected behavior
+          [2m2.[0m Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior
+          [2m3.[0m Postcondition failures may indicate that the service behavior has changed or the assertion needs updating
+        [2m────────────────────────────────────────[0m
+
+[2m[3/4][0m ❌ [1mmixedDeleteUser[0m ([31mFAILED[0m)
+   ⏱️  执行时间: [2m177.041µs[0m
+   🎯 匹配的 Span: [36mspan004[0m
+   📊 断言统计: [1m2[0m 总计, [2m0[0m 通过, [31m2[0m 失败
+   [31m❌ 前置条件:[0m [2m(0/1 通过)[0m
+     [31m❌[0m Precondition assertion failed in span 'mixedDeleteUser' (ID: span004)
+Assertion: {"required_admin_role":{"==":[{"var":"user_role"},"admin"]}}
+Expected: true (type: bool)
+Actual: false (type: bool)
+JSONLogic Result: Expected true, Got false
+Span Status: OK - OK
+Relevant Span Attributes:
+  operation.id: mixedDeleteUser
+  http.method: DELETE
+  user.role: user
+Trace ID: mixed123abc456def
+
+        [2m表达式:[0m [36m{"required_admin_role":{"==":[{"var":"user_role"},"admin"]}}[0m
+        [32m期望:[0m [1mtrue[0m [2m(bool)[0m
+        [31m实际:[0m [1mfalse[0m [2m(bool)[0m
+        [33m💡 失败原因:[0m JSONLogic evaluation error: The operator "required_admin_role" is not supported
+        [36m🔍 上下文信息:[0m
+          Span 名称: [36mmixedDeleteUser[0m
+          Span ID: [2mspan004[0m
+          状态: [32mOK[0m - OK
+        [33m💡 建议:[0m
+          [2m1.[0m Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior
+          [2m2.[0m Precondition failures may indicate that the service was called with unexpected input parameters
+        [2m────────────────────────────────────────[0m
+   [31m❌ 后置条件:[0m [2m(0/1 通过)[0m
+     [31m❌[0m Postcondition assertion failed in span 'mixedDeleteUser' (ID: span004)
+Assertion: {"success_status":{"==":[{"var":"span.status.code"},"OK"]}}
+Expected: true (type: bool)
+Actual: false (type: bool)
+JSONLogic Result: Expected true, Got false
+Span Status: OK - OK
+Relevant Span Attributes:
+  http.method: DELETE
+  user.role: user
+  operation.id: mixedDeleteUser
+Trace ID: mixed123abc456def
+
+        [2m表达式:[0m [36m{"success_status":{"==":[{"var":"span.status.code"},"OK"]}}[0m
+        [32m期望:[0m [1mtrue[0m [2m(bool)[0m
+        [31m实际:[0m [1mfalse[0m [2m(bool)[0m
+        [33m💡 失败原因:[0m JSONLogic evaluation error: The operator "success_status" is not supported
+        [36m🔍 上下文信息:[0m
+          Span 名称: [36mmixedDeleteUser[0m
+          Span ID: [2mspan004[0m
+          状态: [32mOK[0m - OK
+        [33m💡 建议:[0m
+          [2m1.[0m Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior
+          [2m2.[0m Postcondition failures may indicate that the service behavior has changed or the assertion needs updating
+        [2m────────────────────────────────────────[0m
+
+[2m[4/4][0m ❌ [1mmixedCreateUser[0m ([31mFAILED[0m)
+   ⏱️  执行时间: [2m213.209µs[0m
+   🎯 匹配的 Span: [36mspan001[0m
+   📊 断言统计: [1m2[0m 总计, [2m0[0m 通过, [31m2[0m 失败
+   [31m❌ 前置条件:[0m [2m(0/1 通过)[0m
+     [31m❌[0m Precondition assertion failed in span 'mixedCreateUser' (ID: span001)
+Assertion: {"valid_method":{"==":[{"var":"http_method"},"POST"]}}
+Expected: true (type: bool)
+Actual: false (type: bool)
+JSONLogic Result: Expected true, Got false
+Span Status: OK - OK
+Relevant Span Attributes:
+  operation.id: mixedCreateUser
+  http.method: POST
+Trace ID: mixed123abc456def
+
+        [2m表达式:[0m [36m{"valid_method":{"==":[{"var":"http_method"},"POST"]}}[0m
+        [32m期望:[0m [1mtrue[0m [2m(bool)[0m
+        [31m实际:[0m [1mfalse[0m [2m(bool)[0m
+        [33m💡 失败原因:[0m JSONLogic evaluation error: The operator "valid_method" is not supported
+        [36m🔍 上下文信息:[0m
+          Span 名称: [36mmixedCreateUser[0m
+          Span ID: [2mspan001[0m
+          状态: [32mOK[0m - OK
+        [33m💡 建议:[0m
+          [2m1.[0m Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior
+          [2m2.[0m Precondition failures may indicate that the service was called with unexpected input parameters
+        [2m────────────────────────────────────────[0m
+   [31m❌ 后置条件:[0m [2m(0/1 通过)[0m
+     [31m❌[0m Postcondition assertion failed in span 'mixedCreateUser' (ID: span001)
+Assertion: {"success_status":{"==":[{"var":"span.status.code"},"OK"]}}
+Expected: true (type: bool)
+Actual: false (type: bool)
+JSONLogic Result: Expected true, Got false
+Span Status: OK - OK
+Relevant Span Attributes:
+  http.method: POST
+  operation.id: mixedCreateUser
+Trace ID: mixed123abc456def
+
+        [2m表达式:[0m [36m{"success_status":{"==":[{"var":"span.status.code"},"OK"]}}[0m
+        [32m期望:[0m [1mtrue[0m [2m(bool)[0m
+        [31m实际:[0m [1mfalse[0m [2m(bool)[0m
+        [33m💡 失败原因:[0m JSONLogic evaluation error: The operator "success_status" is not supported
+        [36m🔍 上下文信息:[0m
+          Span 名称: [36mmixedCreateUser[0m
+          Span ID: [2mspan001[0m
+          状态: [32mOK[0m - OK
+        [33m💡 建议:[0m
+          [2m1.[0m Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior
+          [2m2.[0m Postcondition failures may indicate that the service behavior has changed or the assertion needs updating
+        [2m────────────────────────────────────────[0m
+
+[36m⏭️  跳过的验证 (8 个)[0m
+[2m[1/8][0m ⏭️ [1mcreateUser[0m ([33mSKIPPED[0m)
+   ⏱️  执行时间: [2m5.666µs[0m
+   [33m🔍 未找到匹配的 Span[0m
+   [36m🔗 Span 匹配:[0m
+     [32m✅[0m No matching spans found for operation: createUser
+
+[2m[2/8][0m ⏭️ [1mexpectSuccessCreateUser[0m ([33mSKIPPED[0m)
+   ⏱️  执行时间: [2m6.458µs[0m
+   [33m🔍 未找到匹配的 Span[0m
+   [36m🔗 Span 匹配:[0m
+     [32m✅[0m No matching spans found for operation: expectSuccessCreateUser
+
+[2m[3/8][0m ⏭️ [1mmixedNonExistentOperation[0m ([33mSKIPPED[0m)
+   ⏱️  执行时间: [2m1.167µs[0m
+   [33m🔍 未找到匹配的 Span[0m
+   [36m🔗 Span 匹配:[0m
+     [32m✅[0m No matching spans found for operation: mixedNonExistentOperation
+
+[2m[4/8][0m ⏭️ [1mstrictCreateUser[0m ([33mSKIPPED[0m)
+   ⏱️  执行时间: [2m958ns[0m
+   [33m🔍 未找到匹配的 Span[0m
+   [36m🔗 Span 匹配:[0m
+     [32m✅[0m No matching spans found for operation: strictCreateUser
+
+[2m[5/8][0m ⏭️ [1mstrictGetUser[0m ([33mSKIPPED[0m)
+   ⏱️  执行时间: [2m542ns[0m
+   [33m🔍 未找到匹配的 Span[0m
+   [36m🔗 Span 匹配:[0m
+     [32m✅[0m No matching spans found for operation: strictGetUser
+
+[2m[6/8][0m ⏭️ [1mupdateUser[0m ([33mSKIPPED[0m)
+   ⏱️  执行时间: [2m875ns[0m
+   [33m🔍 未找到匹配的 Span[0m
+   [36m🔗 Span 匹配:[0m
+     [32m✅[0m No matching spans found for operation: updateUser
+
+[2m[7/8][0m ⏭️ [1mgetUser[0m ([33mSKIPPED[0m)
+   ⏱️  执行时间: [2m375ns[0m
+   [33m🔍 未找到匹配的 Span[0m
+   [36m🔗 Span 匹配:[0m
+     [32m✅[0m No matching spans found for operation: getUser
+
+[2m[8/8][0m ⏭️ [1mexpectSuccessGetUser[0m ([33mSKIPPED[0m)
+   ⏱️  执行时间: [2m3.541µs[0m
+   [33m🔍 未找到匹配的 Span[0m
+   [36m🔗 Span 匹配:[0m
+     [32m✅[0m No matching spans found for operation: expectSuccessGetUser
+
+==================================================
+[31m验证结果: ❌ 失败[0m ([1m8[0m 个断言失败)
+
+[33m💡 建议:[0m
+  • 检查失败的断言是否反映了实际的服务行为变化
+  • 验证轨迹数据是否包含预期的 span 属性和状态
+  • 考虑更新 ServiceSpec 规约以匹配新的服务行为

@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package engine
 
 import (
@@ -8,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"flowspec-cli/internal/models"
+	"github.com/flowspec/flowspec-cli/internal/models"
 )
 
 // AlignmentEngine defines the interface for aligning ServiceSpecs with trace data
@@ -27,21 +41,21 @@ type AssertionEvaluator interface {
 
 // EvaluationContext provides context for assertion evaluation
 type EvaluationContext struct {
-	Span       *models.Span
-	TraceData  *models.TraceData
-	Variables  map[string]interface{}
-	Timestamp  time.Time
-	mu         sync.RWMutex
+	Span      *models.Span
+	TraceData *models.TraceData
+	Variables map[string]interface{}
+	Timestamp time.Time
+	mu        sync.RWMutex
 }
 
 // AssertionResult represents the result of evaluating an assertion
 type AssertionResult struct {
-	Passed      bool
-	Expected    interface{}
-	Actual      interface{}
-	Expression  string
-	Message     string
-	Error       error
+	Passed     bool
+	Expected   interface{}
+	Actual     interface{}
+	Expression string
+	Message    string
+	Error      error
 }
 
 // DefaultAlignmentEngine implements the AlignmentEngine interface
@@ -53,11 +67,11 @@ type DefaultAlignmentEngine struct {
 
 // EngineConfig holds configuration for the alignment engine
 type EngineConfig struct {
-	MaxConcurrency    int           // Maximum number of concurrent alignments
-	Timeout           time.Duration // Timeout for individual spec alignment
-	EnableMetrics     bool          // Enable performance metrics
-	StrictMode        bool          // Strict mode for validation
-	SkipMissingSpans  bool          // Skip specs when corresponding spans are not found
+	MaxConcurrency   int           // Maximum number of concurrent alignments
+	Timeout          time.Duration // Timeout for individual spec alignment
+	EnableMetrics    bool          // Enable performance metrics
+	StrictMode       bool          // Strict mode for validation
+	SkipMissingSpans bool          // Skip specs when corresponding spans are not found
 }
 
 // SpecMatcher handles matching ServiceSpecs to spans
@@ -115,10 +129,10 @@ func NewAlignmentEngineWithConfig(config *EngineConfig) *DefaultAlignmentEngine 
 	engine := &DefaultAlignmentEngine{
 		config: config,
 	}
-	
+
 	// Set default JSONLogic evaluator
 	engine.evaluator = NewJSONLogicEvaluator()
-	
+
 	return engine
 }
 
@@ -137,12 +151,12 @@ func NewSpecMatcher() *SpecMatcher {
 	matcher := &SpecMatcher{
 		matchStrategies: make([]MatchStrategy, 0),
 	}
-	
+
 	// Register default matching strategies in order of priority
 	matcher.AddStrategy(&OperationIDMatcher{})
 	matcher.AddStrategy(&SpanNameMatcher{})
 	matcher.AddStrategy(&AttributeMatcher{attributeKey: "operation.name"})
-	
+
 	return matcher
 }
 
@@ -164,16 +178,16 @@ func (engine *DefaultAlignmentEngine) AlignSpecsWithTrace(specs []models.Service
 	if len(specs) == 0 {
 		return models.NewAlignmentReport(), nil
 	}
-	
+
 	if traceData == nil || len(traceData.Spans) == 0 {
 		return nil, fmt.Errorf("trace data is empty or nil")
 	}
-	
+
 	// Initialize report with timing information
 	startTime := time.Now()
 	report := models.NewAlignmentReport()
 	report.StartTime = startTime.UnixNano()
-	
+
 	// Initialize performance monitoring if enabled
 	var performanceInfo models.PerformanceInfo
 	if engine.config.EnableMetrics {
@@ -186,23 +200,23 @@ func (engine *DefaultAlignmentEngine) AlignSpecsWithTrace(specs []models.Service
 			ProcessingRate:      0.0,
 		}
 	}
-	
+
 	// Create channels for concurrent processing
 	specChan := make(chan models.ServiceSpec, len(specs))
 	resultChan := make(chan *models.AlignmentResult, len(specs))
 	errorChan := make(chan error, len(specs))
-	
+
 	// Determine number of workers
 	numWorkers := engine.config.MaxConcurrency
 	if numWorkers > len(specs) {
 		numWorkers = len(specs)
 	}
-	
+
 	// Update performance info with worker count
 	if engine.config.EnableMetrics {
 		performanceInfo.ConcurrentWorkers = numWorkers
 	}
-	
+
 	// Start workers
 	var wg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
@@ -212,25 +226,25 @@ func (engine *DefaultAlignmentEngine) AlignSpecsWithTrace(specs []models.Service
 			engine.alignmentWorker(specChan, resultChan, errorChan, traceData)
 		}()
 	}
-	
+
 	// Send specs to workers
 	for _, spec := range specs {
 		specChan <- spec
 	}
 	close(specChan)
-	
+
 	// Wait for workers to complete
 	go func() {
 		wg.Wait()
 		close(resultChan)
 		close(errorChan)
 	}()
-	
+
 	// Collect results and update performance metrics
 	var errors []error
 	spansMatched := 0
 	assertionsEvaluated := 0
-	
+
 	for {
 		select {
 		case result, ok := <-resultChan:
@@ -238,7 +252,7 @@ func (engine *DefaultAlignmentEngine) AlignSpecsWithTrace(specs []models.Service
 				resultChan = nil
 			} else {
 				report.AddResult(*result)
-				
+
 				// Update performance metrics
 				if engine.config.EnableMetrics {
 					performanceInfo.SpecsProcessed++
@@ -253,39 +267,39 @@ func (engine *DefaultAlignmentEngine) AlignSpecsWithTrace(specs []models.Service
 				errors = append(errors, err)
 			}
 		}
-		
+
 		if resultChan == nil && errorChan == nil {
 			break
 		}
 	}
-	
+
 	// Finalize report timing and performance information
 	endTime := time.Now()
 	report.EndTime = endTime.UnixNano()
 	report.ExecutionTime = endTime.Sub(startTime).Nanoseconds()
-	
+
 	// Complete performance information
 	if engine.config.EnableMetrics {
 		performanceInfo.SpansMatched = spansMatched
 		performanceInfo.AssertionsEvaluated = assertionsEvaluated
-		
+
 		// Calculate processing rate (specs per second)
 		executionSeconds := float64(report.ExecutionTime) / 1e9
 		if executionSeconds > 0 {
 			performanceInfo.ProcessingRate = float64(performanceInfo.SpecsProcessed) / executionSeconds
 		}
-		
+
 		// Get memory usage (simplified - in a real implementation, you'd use runtime.MemStats)
 		performanceInfo.MemoryUsageMB = engine.getMemoryUsageMB()
-		
+
 		report.PerformanceInfo = performanceInfo
 	}
-	
+
 	// Return error if any critical errors occurred
 	if len(errors) > 0 && len(report.Results) == 0 {
 		return nil, fmt.Errorf("alignment failed with %d errors: %v", len(errors), errors[0])
 	}
-	
+
 	return report, nil
 }
 
@@ -294,51 +308,51 @@ func (engine *DefaultAlignmentEngine) AlignSingleSpec(spec models.ServiceSpec, t
 	if engine.evaluator == nil {
 		return nil, fmt.Errorf("no assertion evaluator configured")
 	}
-	
+
 	startTime := time.Now()
 	result := models.NewAlignmentResult(spec.OperationID)
 	result.StartTime = startTime.UnixNano()
-	
+
 	// Find matching spans
 	matcher := NewSpecMatcher()
 	matchingSpans, err := matcher.FindMatchingSpans(spec, traceData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find matching spans: %w", err)
 	}
-	
+
 	if len(matchingSpans) == 0 {
 		if engine.config.SkipMissingSpans {
 			result.AddValidationDetail(*models.NewValidationDetail(
-				"matching", "span_match", "found", "found", 
+				"matching", "span_match", "found", "found",
 				"No matching spans found for operation: "+spec.OperationID))
 			result.Status = models.StatusSkipped // Set after adding detail
 		} else {
 			result.AddValidationDetail(*models.NewValidationDetail(
-				"matching", "span_match", "found", "not_found", 
+				"matching", "span_match", "found", "not_found",
 				"Required spans not found for operation: "+spec.OperationID))
 			// Status will be set to FAILED by updateStatus due to mismatch
 		}
-		
+
 		// Finalize timing
 		endTime := time.Now()
 		result.EndTime = endTime.UnixNano()
 		result.ExecutionTime = endTime.Sub(startTime).Nanoseconds()
 		return result, nil
 	}
-	
+
 	// Record matched span IDs
 	result.MatchedSpans = make([]string, len(matchingSpans))
 	for i, span := range matchingSpans {
 		result.MatchedSpans[i] = span.SpanID
 	}
-	
+
 	// Evaluate assertions for each matching span
 	for _, span := range matchingSpans {
 		if err := engine.evaluateSpecForSpan(spec, span, traceData, result); err != nil {
 			return nil, fmt.Errorf("failed to evaluate spec for span %s: %w", span.SpanID, err)
 		}
 	}
-	
+
 	// Finalize timing
 	endTime := time.Now()
 	result.EndTime = endTime.UnixNano()
@@ -375,19 +389,19 @@ func (engine *DefaultAlignmentEngine) alignmentWorker(specChan <-chan models.Ser
 // evaluateSpecForSpan evaluates a spec against a specific span
 func (engine *DefaultAlignmentEngine) evaluateSpecForSpan(spec models.ServiceSpec, span *models.Span, traceData *models.TraceData, result *models.AlignmentResult) error {
 	context := NewEvaluationContext(span, traceData)
-	
+
 	// Populate context with span data
 	engine.populateEvaluationContext(context, span)
-	
+
 	// Evaluate preconditions
 	if len(spec.Preconditions) > 0 {
 		preconditionResult, err := engine.evaluator.EvaluateAssertion(spec.Preconditions, context)
 		if err != nil {
 			return fmt.Errorf("failed to evaluate preconditions: %w", err)
 		}
-		
+
 		detail := engine.createDetailedValidationDetail(
-			"precondition", 
+			"precondition",
 			spec.Preconditions,
 			preconditionResult,
 			span,
@@ -395,14 +409,14 @@ func (engine *DefaultAlignmentEngine) evaluateSpecForSpan(spec models.ServiceSpe
 		)
 		result.AddValidationDetail(*detail)
 	}
-	
+
 	// Evaluate postconditions
 	if len(spec.Postconditions) > 0 {
 		postconditionResult, err := engine.evaluator.EvaluateAssertion(spec.Postconditions, context)
 		if err != nil {
 			return fmt.Errorf("failed to evaluate postconditions: %w", err)
 		}
-		
+
 		detail := engine.createDetailedValidationDetail(
 			"postcondition",
 			spec.Postconditions,
@@ -412,7 +426,7 @@ func (engine *DefaultAlignmentEngine) evaluateSpecForSpan(spec models.ServiceSpe
 		)
 		result.AddValidationDetail(*detail)
 	}
-	
+
 	return nil
 }
 
@@ -433,14 +447,14 @@ func (engine *DefaultAlignmentEngine) createDetailedValidationDetail(
 		Message:     engine.generateActionableErrorMessage(detailType, assertion, assertionResult, span, context),
 		SpanContext: span,
 	}
-	
+
 	// Add failure analysis if assertion failed
 	if !assertionResult.Passed {
 		detail.FailureReason = engine.analyzeFailureReason(assertion, assertionResult, context)
 		detail.ContextInfo = engine.extractContextInfo(span, context)
 		detail.Suggestions = engine.generateSuggestions(detailType, assertion, assertionResult, span)
 	}
-	
+
 	return detail
 }
 
@@ -453,34 +467,34 @@ func (engine *DefaultAlignmentEngine) generateActionableErrorMessage(
 	context *EvaluationContext,
 ) string {
 	if result.Passed {
-		return fmt.Sprintf("%s assertion passed: %s", 
+		return fmt.Sprintf("%s assertion passed: %s",
 			strings.Title(detailType), result.Message)
 	}
-	
+
 	// Build detailed failure message
 	var msgBuilder strings.Builder
-	
-	msgBuilder.WriteString(fmt.Sprintf("%s assertion failed in span '%s' (ID: %s)\n", 
+
+	msgBuilder.WriteString(fmt.Sprintf("%s assertion failed in span '%s' (ID: %s)\n",
 		strings.Title(detailType), span.Name, span.SpanID))
-	
+
 	// Add assertion details with enhanced context
 	msgBuilder.WriteString(fmt.Sprintf("Assertion: %s\n", result.Expression))
-	
+
 	// Try to extract more meaningful expected/actual values from the assertion
 	expectedVal, actualVal := engine.extractMeaningfulValues(assertion, result, context)
 	msgBuilder.WriteString(fmt.Sprintf("Expected: %v (type: %T)\n", expectedVal, expectedVal))
 	msgBuilder.WriteString(fmt.Sprintf("Actual: %v (type: %T)\n", actualVal, actualVal))
-	
+
 	// Add JSONLogic evaluation result for reference
 	msgBuilder.WriteString(fmt.Sprintf("JSONLogic Result: Expected %v, Got %v\n", result.Expected, result.Actual))
-	
+
 	// Add span context
 	msgBuilder.WriteString(fmt.Sprintf("Span Status: %s", span.Status.Code))
 	if span.Status.Message != "" {
 		msgBuilder.WriteString(fmt.Sprintf(" - %s", span.Status.Message))
 	}
 	msgBuilder.WriteString("\n")
-	
+
 	// Add relevant span attributes
 	if len(span.Attributes) > 0 {
 		msgBuilder.WriteString("Relevant Span Attributes:\n")
@@ -488,13 +502,13 @@ func (engine *DefaultAlignmentEngine) generateActionableErrorMessage(
 			msgBuilder.WriteString(fmt.Sprintf("  %s: %v\n", key, value))
 		}
 	}
-	
+
 	// Add trace context
 	msgBuilder.WriteString(fmt.Sprintf("Trace ID: %s\n", span.TraceID))
 	if span.ParentID != "" {
 		msgBuilder.WriteString(fmt.Sprintf("Parent Span ID: %s\n", span.ParentID))
 	}
-	
+
 	return msgBuilder.String()
 }
 
@@ -535,7 +549,7 @@ func (engine *DefaultAlignmentEngine) extractMeaningfulValues(
 			}
 		}
 	}
-	
+
 	// For other comparison operators, try similar extraction
 	for op, opAssertion := range assertion {
 		switch op {
@@ -570,7 +584,7 @@ func (engine *DefaultAlignmentEngine) extractMeaningfulValues(
 			}
 		}
 	}
-	
+
 	// Fallback to JSONLogic result values
 	return result.Expected, result.Actual
 }
@@ -584,79 +598,79 @@ func (engine *DefaultAlignmentEngine) analyzeFailureReason(
 	if result.Passed {
 		return ""
 	}
-	
+
 	// Analyze the type of failure
 	var reasons []string
-	
+
 	// Type mismatch analysis
 	if result.Expected != nil && result.Actual != nil {
 		expectedType := reflect.TypeOf(result.Expected)
 		actualType := reflect.TypeOf(result.Actual)
-		
+
 		if expectedType != actualType {
 			reasons = append(reasons, fmt.Sprintf(
-				"Type mismatch: expected %s but got %s", 
+				"Type mismatch: expected %s but got %s",
 				expectedType, actualType))
 		}
 	}
-	
+
 	// Null/nil value analysis
 	if result.Expected != nil && result.Actual == nil {
 		reasons = append(reasons, "Expected non-nil value but got nil")
 	} else if result.Expected == nil && result.Actual != nil {
 		reasons = append(reasons, "Expected nil value but got non-nil")
 	}
-	
+
 	// Numeric comparison analysis
 	if isNumeric(result.Expected) && isNumeric(result.Actual) {
 		expectedNum := toFloat64(result.Expected)
 		actualNum := toFloat64(result.Actual)
 		diff := actualNum - expectedNum
-		
+
 		if diff != 0 {
 			reasons = append(reasons, fmt.Sprintf(
-				"Numeric difference: actual value is %.2f %s than expected", 
-				abs(diff), 
+				"Numeric difference: actual value is %.2f %s than expected",
+				abs(diff),
 				map[bool]string{true: "greater", false: "less"}[diff > 0]))
 		}
 	}
-	
+
 	// String comparison analysis
 	if expectedStr, ok := result.Expected.(string); ok {
 		if actualStr, ok := result.Actual.(string); ok {
 			if len(expectedStr) != len(actualStr) {
 				reasons = append(reasons, fmt.Sprintf(
-					"String length mismatch: expected %d characters, got %d", 
+					"String length mismatch: expected %d characters, got %d",
 					len(expectedStr), len(actualStr)))
 			}
-			
+
 			// Find first difference
 			minLen := min(len(expectedStr), len(actualStr))
 			for i := 0; i < minLen; i++ {
 				if expectedStr[i] != actualStr[i] {
 					reasons = append(reasons, fmt.Sprintf(
-						"First difference at position %d: expected '%c', got '%c'", 
+						"First difference at position %d: expected '%c', got '%c'",
 						i, expectedStr[i], actualStr[i]))
 					break
 				}
 			}
 		}
 	}
-	
+
 	// JSONLogic specific analysis
 	if result.Error != nil {
 		reasons = append(reasons, fmt.Sprintf("JSONLogic evaluation error: %v", result.Error))
 	}
-	
+
 	// Variable resolution analysis
 	if len(reasons) == 0 {
 		reasons = append(reasons, engine.analyzeVariableResolution(assertion, context))
 	}
-	
+
 	if len(reasons) == 0 {
 		return "Assertion evaluated to false but specific reason could not be determined"
 	}
-	
+
 	return strings.Join(reasons, "; ")
 }
 
@@ -667,7 +681,7 @@ func (engine *DefaultAlignmentEngine) analyzeVariableResolution(
 ) string {
 	variables := engine.extractVariablesFromAssertion(assertion)
 	var issues []string
-	
+
 	for _, variable := range variables {
 		if value, exists := context.GetVariable(variable); !exists {
 			issues = append(issues, fmt.Sprintf("Variable '%s' not found in context", variable))
@@ -675,11 +689,11 @@ func (engine *DefaultAlignmentEngine) analyzeVariableResolution(
 			issues = append(issues, fmt.Sprintf("Variable '%s' is nil", variable))
 		}
 	}
-	
+
 	if len(issues) > 0 {
 		return "Variable resolution issues: " + strings.Join(issues, ", ")
 	}
-	
+
 	return "Unknown assertion failure reason"
 }
 
@@ -713,7 +727,7 @@ func (engine *DefaultAlignmentEngine) extractVariablesRecursive(obj interface{},
 // extractContextInfo extracts relevant context information for debugging
 func (engine *DefaultAlignmentEngine) extractContextInfo(span *models.Span, context *EvaluationContext) map[string]interface{} {
 	info := make(map[string]interface{})
-	
+
 	// Span information
 	info["span"] = map[string]interface{}{
 		"id":         span.SpanID,
@@ -727,10 +741,10 @@ func (engine *DefaultAlignmentEngine) extractContextInfo(span *models.Span, cont
 		"has_error":  span.HasError(),
 		"is_root":    span.IsRoot(),
 	}
-	
+
 	// Available attributes
 	info["attributes"] = span.Attributes
-	
+
 	// Available events
 	if len(span.Events) > 0 {
 		events := make([]map[string]interface{}, len(span.Events))
@@ -743,17 +757,17 @@ func (engine *DefaultAlignmentEngine) extractContextInfo(span *models.Span, cont
 		}
 		info["events"] = events
 	}
-	
+
 	// Context variables
 	info["variables"] = context.GetAllVariables()
-	
+
 	// Trace information
 	if context.TraceData != nil {
 		info["trace"] = map[string]interface{}{
 			"id":         context.TraceData.TraceID,
 			"span_count": len(context.TraceData.Spans),
 		}
-		
+
 		if context.TraceData.RootSpan != nil {
 			info["trace"].(map[string]interface{})["root_span"] = map[string]interface{}{
 				"id":   context.TraceData.RootSpan.SpanID,
@@ -761,7 +775,7 @@ func (engine *DefaultAlignmentEngine) extractContextInfo(span *models.Span, cont
 			}
 		}
 	}
-	
+
 	return info
 }
 
@@ -775,59 +789,59 @@ func (engine *DefaultAlignmentEngine) generateSuggestions(
 	if result.Passed {
 		return nil
 	}
-	
+
 	var suggestions []string
-	
+
 	// Type-specific suggestions
 	if result.Expected != nil && result.Actual != nil {
 		expectedType := reflect.TypeOf(result.Expected)
 		actualType := reflect.TypeOf(result.Actual)
-		
+
 		if expectedType != actualType {
 			suggestions = append(suggestions, fmt.Sprintf(
 				"Consider converting the actual value to %s or updating the assertion to expect %s",
 				expectedType, actualType))
 		}
 	}
-	
+
 	// Null value suggestions
 	if result.Expected != nil && result.Actual == nil {
-		suggestions = append(suggestions, 
+		suggestions = append(suggestions,
 			"Check if the span attribute or variable exists and has a non-nil value")
 	}
-	
+
 	// Numeric comparison suggestions
 	if isNumeric(result.Expected) && isNumeric(result.Actual) {
-		suggestions = append(suggestions, 
+		suggestions = append(suggestions,
 			"Verify the expected numeric value or check if the span attribute contains the correct numeric data")
 	}
-	
+
 	// String comparison suggestions
 	if _, expectedIsString := result.Expected.(string); expectedIsString {
 		if _, actualIsString := result.Actual.(string); actualIsString {
-			suggestions = append(suggestions, 
+			suggestions = append(suggestions,
 				"Check for case sensitivity, whitespace, or encoding differences in string values")
 		}
 	}
-	
+
 	// Span-specific suggestions
 	if span.HasError() {
-		suggestions = append(suggestions, 
+		suggestions = append(suggestions,
 			"The span has an error status - consider checking if this affects the expected behavior")
 	}
-	
+
 	// General suggestions
-	suggestions = append(suggestions, 
+	suggestions = append(suggestions,
 		"Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior")
-	
+
 	if detailType == "precondition" {
-		suggestions = append(suggestions, 
+		suggestions = append(suggestions,
 			"Precondition failures may indicate that the service was called with unexpected input parameters")
 	} else if detailType == "postcondition" {
-		suggestions = append(suggestions, 
+		suggestions = append(suggestions,
 			"Postcondition failures may indicate that the service behavior has changed or the assertion needs updating")
 	}
-	
+
 	return suggestions
 }
 
@@ -835,7 +849,7 @@ func (engine *DefaultAlignmentEngine) generateSuggestions(
 func (engine *DefaultAlignmentEngine) populateEvaluationContext(context *EvaluationContext, span *models.Span) {
 	context.mu.Lock()
 	defer context.mu.Unlock()
-	
+
 	// Add span attributes to context
 	for key, value := range span.Attributes {
 		// Keep original key for backward compatibility
@@ -846,7 +860,7 @@ func (engine *DefaultAlignmentEngine) populateEvaluationContext(context *Evaluat
 			context.Variables[safeKey] = value
 		}
 	}
-	
+
 	// Add span metadata
 	context.Variables["span.id"] = span.SpanID
 	context.Variables["span.name"] = span.Name
@@ -857,7 +871,7 @@ func (engine *DefaultAlignmentEngine) populateEvaluationContext(context *Evaluat
 	context.Variables["span.status.message"] = span.Status.Message
 	context.Variables["span.has_error"] = span.HasError()
 	context.Variables["span.is_root"] = span.IsRoot()
-	
+
 	// Add trace metadata
 	context.Variables["trace.id"] = span.TraceID
 	if context.TraceData != nil {
@@ -889,7 +903,7 @@ func (ctx *EvaluationContext) SetVariable(key string, value interface{}) {
 func (ctx *EvaluationContext) GetAllVariables() map[string]interface{} {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
-	
+
 	result := make(map[string]interface{})
 	for key, value := range ctx.Variables {
 		result[key] = value
@@ -910,19 +924,19 @@ func (sm *SpecMatcher) AddStrategy(strategy MatchStrategy) {
 func (sm *SpecMatcher) FindMatchingSpans(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	
+
 	// Try each strategy in order of priority
 	for _, strategy := range sm.matchStrategies {
 		spans, err := strategy.Match(spec, traceData)
 		if err != nil {
 			continue // Try next strategy
 		}
-		
+
 		if len(spans) > 0 {
 			return spans, nil
 		}
 	}
-	
+
 	// No matching spans found
 	return []*models.Span{}, nil
 }
@@ -934,7 +948,7 @@ func (sm *SpecMatcher) FindMatchingSpans(spec models.ServiceSpec, traceData *mod
 // Match implements the MatchStrategy interface
 func (matcher *OperationIDMatcher) Match(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
 	var matchingSpans []*models.Span
-	
+
 	for _, span := range traceData.Spans {
 		if operationID, ok := span.Attributes["operation.id"].(string); ok {
 			if operationID == spec.OperationID {
@@ -942,7 +956,7 @@ func (matcher *OperationIDMatcher) Match(spec models.ServiceSpec, traceData *mod
 			}
 		}
 	}
-	
+
 	return matchingSpans, nil
 }
 
@@ -961,14 +975,14 @@ func (matcher *OperationIDMatcher) GetPriority() int {
 // Match implements the MatchStrategy interface
 func (matcher *SpanNameMatcher) Match(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
 	var matchingSpans []*models.Span
-	
+
 	// Try to match by span name (use operation ID as span name)
 	for _, span := range traceData.Spans {
 		if span.Name == spec.OperationID {
 			matchingSpans = append(matchingSpans, span)
 		}
 	}
-	
+
 	return matchingSpans, nil
 }
 
@@ -987,7 +1001,7 @@ func (matcher *SpanNameMatcher) GetPriority() int {
 // Match implements the MatchStrategy interface
 func (matcher *AttributeMatcher) Match(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
 	var matchingSpans []*models.Span
-	
+
 	for _, span := range traceData.Spans {
 		if value, ok := span.Attributes[matcher.attributeKey].(string); ok {
 			if value == spec.OperationID {
@@ -995,7 +1009,7 @@ func (matcher *AttributeMatcher) Match(spec models.ServiceSpec, traceData *model
 			}
 		}
 	}
-	
+
 	return matchingSpans, nil
 }
 
@@ -1131,10 +1145,10 @@ func ValidateEngineConfig(config *EngineConfig) error {
 	if config.MaxConcurrency <= 0 {
 		return fmt.Errorf("MaxConcurrency must be positive, got %d", config.MaxConcurrency)
 	}
-	
+
 	if config.Timeout <= 0 {
 		return fmt.Errorf("Timeout must be positive, got %s", config.Timeout)
 	}
-	
+
 	return nil
 }

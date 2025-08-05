@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package models
 
 import (
@@ -94,14 +108,14 @@ func TestServiceSpec_Validate(t *testing.T) {
 
 func TestServiceSpec_JSONSerialization(t *testing.T) {
 	spec := ServiceSpec{
-		OperationID:   "createUser",
-		Description:   "Create a new user",
+		OperationID: "createUser",
+		Description: "Create a new user",
 		Preconditions: map[string]interface{}{
-			"request.body.email": map[string]interface{}{"!=": nil},
+			"request.body.email":    map[string]interface{}{"!=": nil},
 			"request.body.password": map[string]interface{}{">=": 8},
 		},
 		Postconditions: map[string]interface{}{
-			"response.status": map[string]interface{}{"==": 201},
+			"response.status":      map[string]interface{}{"==": 201},
 			"response.body.userId": map[string]interface{}{"!=": nil},
 		},
 		SourceFile: "user.go",
@@ -130,7 +144,7 @@ func TestServiceSpec_JSONSerialization(t *testing.T) {
 	assert.Equal(t, spec.Description, newSpec.Description)
 	assert.Equal(t, spec.SourceFile, newSpec.SourceFile)
 	assert.Equal(t, spec.LineNumber, newSpec.LineNumber)
-	
+
 	// Note: JSON unmarshaling converts numbers to float64, so we need to check structure rather than exact equality
 	assert.NotNil(t, newSpec.Preconditions)
 	assert.NotNil(t, newSpec.Postconditions)
@@ -265,7 +279,7 @@ func TestServiceSpec_ComplexConditions(t *testing.T) {
 	err = newSpec.FromJSON(jsonData)
 	require.NoError(t, err)
 	assert.Equal(t, spec.OperationID, newSpec.OperationID)
-	
+
 	// Verify structure is preserved (JSON unmarshaling converts numbers to float64)
 	assert.NotNil(t, newSpec.Preconditions)
 	assert.NotNil(t, newSpec.Postconditions)
@@ -304,7 +318,7 @@ func TestSpan_HasError(t *testing.T) {
 func TestSpan_GetAttribute(t *testing.T) {
 	span := Span{
 		Attributes: map[string]interface{}{
-			"http.method": "POST",
+			"http.method":      "POST",
 			"http.status_code": 200,
 		},
 	}
@@ -452,9 +466,11 @@ func TestTraceData_BuildSpanTree_NoSpans(t *testing.T) {
 		Spans:   map[string]*Span{},
 	}
 
+	// Building a tree from no spans should not produce an error.
 	err := traceData.BuildSpanTree()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no spans available")
+	assert.NoError(t, err)
+	assert.Nil(t, traceData.RootSpan, "RootSpan should be nil for an empty trace")
+	assert.Nil(t, traceData.SpanTree, "SpanTree should be nil for an empty trace")
 }
 
 func TestTraceData_BuildSpanTree_NoRootSpan(t *testing.T) {
@@ -900,7 +916,7 @@ func TestAlignmentReport_ComplexScenario(t *testing.T) {
 	report := NewAlignmentReport()
 
 	// Create multiple results with different outcomes
-	
+
 	// Successful operation
 	successResult := NewAlignmentResult("createUser")
 	successResult.ExecutionTime = 500000 // 0.5ms

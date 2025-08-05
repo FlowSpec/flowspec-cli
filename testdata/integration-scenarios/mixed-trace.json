@@ -1,0 +1,66 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "user-service"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "spans": [
+            {
+              "traceId": "mixed123abc456def",
+              "spanId": "span001",
+              "name": "mixedCreateUser",
+              "startTimeUnixNano": "1640995200000000000",
+              "endTimeUnixNano": "1640995201000000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "POST"}},
+                {"key": "operation.id", "value": {"stringValue": "mixedCreateUser"}}
+              ],
+              "status": {"code": 1, "message": "OK"}
+            },
+            {
+              "traceId": "mixed123abc456def",
+              "spanId": "span002",
+              "name": "mixedGetUser",
+              "startTimeUnixNano": "1640995202000000000",
+              "endTimeUnixNano": "1640995203000000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "GET"}},
+                {"key": "operation.id", "value": {"stringValue": "mixedGetUser"}}
+              ],
+              "status": {"code": 1, "message": "OK"}
+            },
+            {
+              "traceId": "mixed123abc456def",
+              "spanId": "span003",
+              "name": "mixedUpdateUser",
+              "startTimeUnixNano": "1640995204000000000",
+              "endTimeUnixNano": "1640995205000000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "PUT"}},
+                {"key": "operation.id", "value": {"stringValue": "mixedUpdateUser"}}
+              ],
+              "status": {"code": 2, "message": "ERROR"}
+            },
+            {
+              "traceId": "mixed123abc456def",
+              "spanId": "span004",
+              "name": "mixedDeleteUser",
+              "startTimeUnixNano": "1640995206000000000",
+              "endTimeUnixNano": "1640995207000000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "DELETE"}},
+                {"key": "user.role", "value": {"stringValue": "user"}},
+                {"key": "operation.id", "value": {"stringValue": "mixedDeleteUser"}}
+              ],
+              "status": {"code": 1, "message": "OK"}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

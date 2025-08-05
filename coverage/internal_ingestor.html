@@ -1,0 +1,1175 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>ingestor: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">flowspec-cli/internal/ingestor/ingestor.go (93.2%)</option>
+				
+				<option value="file1">flowspec-cli/internal/ingestor/streaming.go (87.1%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package ingestor
+
+import (
+        "encoding/json"
+        "fmt"
+        "io"
+        "os"
+        "runtime"
+        "sync"
+        "time"
+
+        "flowspec-cli/internal/models"
+)
+
+// TraceIngestor defines the interface for ingesting OpenTelemetry traces
+type TraceIngestor interface {
+        IngestFromFile(filePath string) (*models.TraceData, error)
+        IngestFromReader(reader io.Reader) (*models.TraceData, error)
+        SetMemoryLimit(limitMB int64)
+        GetMemoryUsage() int64
+}
+
+// TraceQuery defines the interface for querying trace data
+type TraceQuery interface {
+        FindSpanByID(spanID string) *models.Span
+        FindSpansByName(name string) []*models.Span
+        FindSpansByOperationID(operationID string) []*models.Span
+        GetRootSpan() *models.Span
+        GetAllSpans() []*models.Span
+}
+
+// TraceStore provides storage and querying capabilities for trace data
+type TraceStore struct {
+        traceData    *models.TraceData
+        spanIndex    map[string]*models.Span           // spanID -&gt; Span
+        nameIndex    map[string][]*models.Span         // span name -&gt; Spans
+        operationIndex map[string][]*models.Span       // operation ID -&gt; Spans
+        mu           sync.RWMutex
+}
+
+// DefaultTraceIngestor implements the TraceIngestor interface
+type DefaultTraceIngestor struct {
+        memoryLimit   int64 // Memory limit in bytes
+        currentMemory int64 // Current memory usage estimate
+        mu            sync.RWMutex
+}
+
+// IngestorConfig holds configuration for the trace ingestor
+type IngestorConfig struct {
+        MemoryLimitMB    int64 // Memory limit in MB
+        EnableStreaming  bool  // Enable streaming for large files
+        ChunkSize        int   // Chunk size for streaming
+        MaxFileSize      int64 // Maximum file size in bytes
+        EnableMetrics    bool  // Enable performance metrics
+}
+
+// IngestMetrics tracks ingestion performance
+type IngestMetrics struct {
+        StartTime       time.Time
+        EndTime         time.Time
+        TotalSpans      int
+        ProcessedSpans  int
+        MemoryUsed      int64
+        FileSize        int64
+        ProcessingTime  time.Duration
+        mu              sync.RWMutex
+}
+
+// OTLPTrace represents the root structure of an OTLP JSON trace
+type OTLPTrace struct {
+        ResourceSpans []ResourceSpan `json:"resourceSpans"`
+}
+
+// ResourceSpan represents a resource span in OTLP format
+type ResourceSpan struct {
+        Resource    Resource    `json:"resource"`
+        ScopeSpans  []ScopeSpan `json:"scopeSpans"`
+}
+
+// Resource represents a resource in OTLP format
+type Resource struct {
+        Attributes []Attribute `json:"attributes"`
+}
+
+// ScopeSpan represents a scope span in OTLP format
+type ScopeSpan struct {
+        Scope Scope       `json:"scope"`
+        Spans []OTLPSpan  `json:"spans"`
+}
+
+// Scope represents a scope in OTLP format
+type Scope struct {
+        Name    string `json:"name"`
+        Version string `json:"version"`
+}
+
+// OTLPSpan represents a span in OTLP JSON format
+type OTLPSpan struct {
+        TraceID           string      `json:"traceId"`
+        SpanID            string      `json:"spanId"`
+        ParentSpanID      string      `json:"parentSpanId,omitempty"`
+        Name              string      `json:"name"`
+        Kind              int         `json:"kind"`
+        StartTimeUnixNano string      `json:"startTimeUnixNano"`
+        EndTimeUnixNano   string      `json:"endTimeUnixNano"`
+        Attributes        []Attribute `json:"attributes"`
+        Status            Status      `json:"status"`
+        Events            []Event     `json:"events"`
+}
+
+// Attribute represents an attribute in OTLP format
+type Attribute struct {
+        Key   string      `json:"key"`
+        Value interface{} `json:"value"`
+}
+
+// Status represents span status in OTLP format
+type Status struct {
+        Code    int    `json:"code"`
+        Message string `json:"message"`
+}
+
+// Event represents a span event in OTLP format
+type Event struct {
+        TimeUnixNano string      `json:"timeUnixNano"`
+        Name         string      `json:"name"`
+        Attributes   []Attribute `json:"attributes"`
+}
+
+// DefaultIngestorConfig returns a default ingestor configuration
+func DefaultIngestorConfig() *IngestorConfig <span class="cov8" title="1">{
+        return &amp;IngestorConfig{
+                MemoryLimitMB:   500, // 500MB default limit
+                EnableStreaming: true,
+                ChunkSize:       1024 * 1024, // 1MB chunks
+                MaxFileSize:     100 * 1024 * 1024, // 100MB max file size
+                EnableMetrics:   true,
+        }
+}</span>
+
+// NewTraceIngestor creates a new trace ingestor with default configuration
+func NewTraceIngestor() *DefaultTraceIngestor <span class="cov8" title="1">{
+        config := DefaultIngestorConfig()
+        return &amp;DefaultTraceIngestor{
+                memoryLimit: config.MemoryLimitMB * 1024 * 1024, // Convert to bytes
+        }
+}</span>
+
+// NewTraceIngestorWithConfig creates a new trace ingestor with custom configuration
+func NewTraceIngestorWithConfig(config *IngestorConfig) *DefaultTraceIngestor <span class="cov8" title="1">{
+        return &amp;DefaultTraceIngestor{
+                memoryLimit: config.MemoryLimitMB * 1024 * 1024, // Convert to bytes
+        }
+}</span>
+
+// NewTraceStore creates a new trace store
+func NewTraceStore() *TraceStore <span class="cov8" title="1">{
+        return &amp;TraceStore{
+                spanIndex:      make(map[string]*models.Span),
+                nameIndex:      make(map[string][]*models.Span),
+                operationIndex: make(map[string][]*models.Span),
+        }
+}</span>
+
+// NewIngestMetrics creates a new ingest metrics tracker
+func NewIngestMetrics() *IngestMetrics <span class="cov8" title="1">{
+        return &amp;IngestMetrics{
+                StartTime: time.Now(),
+        }
+}</span>
+
+// IngestFromFile implements the TraceIngestor interface
+func (ti *DefaultTraceIngestor) IngestFromFile(filePath string) (*models.TraceData, error) <span class="cov8" title="1">{
+        // Check if file exists and get size
+        fileInfo, err := os.Stat(filePath)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to access file %s: %w", filePath, err)
+        }</span>
+        
+        // Check file size limits
+        <span class="cov8" title="1">if fileInfo.Size() &gt; 100*1024*1024 </span><span class="cov8" title="1">{ // 100MB limit
+                return nil, fmt.Errorf("file size %d bytes exceeds maximum limit of 100MB", fileInfo.Size())
+        }</span>
+        
+        // Open file
+        <span class="cov8" title="1">file, err := os.Open(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to open file %s: %w", filePath, err)
+        }</span>
+        <span class="cov8" title="1">defer file.Close()
+        
+        // Ingest from reader
+        return ti.IngestFromReader(file)</span>
+}
+
+// IngestFromReader implements the TraceIngestor interface
+func (ti *DefaultTraceIngestor) IngestFromReader(reader io.Reader) (*models.TraceData, error) <span class="cov8" title="1">{
+        metrics := NewIngestMetrics()
+        defer metrics.Finish()
+        
+        // Check memory before starting
+        if err := ti.checkMemoryLimit(); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        
+        // Read and parse JSON
+        <span class="cov8" title="1">data, err := io.ReadAll(reader)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to read trace data: %w", err)
+        }</span>
+        
+        // Update memory usage estimate
+        <span class="cov8" title="1">ti.updateMemoryUsage(int64(len(data)))
+        metrics.FileSize = int64(len(data))
+        
+        // Parse OTLP JSON
+        var otlpTrace OTLPTrace
+        if err := json.Unmarshal(data, &amp;otlpTrace); err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to parse OTLP JSON: %w", err)
+        }</span>
+        
+        // Convert to internal format
+        <span class="cov8" title="1">traceData, err := ti.convertOTLPToTraceData(otlpTrace, metrics)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to convert OTLP data: %w", err)
+        }</span>
+        
+        // Build span tree
+        <span class="cov8" title="1">if err := traceData.BuildSpanTree(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to build span tree: %w", err)
+        }</span>
+        
+        <span class="cov8" title="1">metrics.ProcessedSpans = len(traceData.Spans)
+        metrics.MemoryUsed = ti.GetMemoryUsage()
+        
+        return traceData, nil</span>
+}
+
+// SetMemoryLimit implements the TraceIngestor interface
+func (ti *DefaultTraceIngestor) SetMemoryLimit(limitMB int64) <span class="cov8" title="1">{
+        ti.mu.Lock()
+        defer ti.mu.Unlock()
+        ti.memoryLimit = limitMB * 1024 * 1024 // Convert to bytes
+}</span>
+
+// GetMemoryUsage implements the TraceIngestor interface
+func (ti *DefaultTraceIngestor) GetMemoryUsage() int64 <span class="cov8" title="1">{
+        ti.mu.RLock()
+        defer ti.mu.RUnlock()
+        return ti.currentMemory
+}</span>
+
+// checkMemoryLimit checks if current memory usage is within limits
+func (ti *DefaultTraceIngestor) checkMemoryLimit() error <span class="cov8" title="1">{
+        ti.mu.RLock()
+        defer ti.mu.RUnlock()
+        
+        // Get current system memory usage
+        var m runtime.MemStats
+        runtime.ReadMemStats(&amp;m)
+        
+        if int64(m.Alloc) &gt; ti.memoryLimit </span><span class="cov0" title="0">{
+                return fmt.Errorf("memory usage %d bytes exceeds limit %d bytes", m.Alloc, ti.memoryLimit)
+        }</span>
+        
+        <span class="cov8" title="1">return nil</span>
+}
+
+// updateMemoryUsage updates the current memory usage estimate
+func (ti *DefaultTraceIngestor) updateMemoryUsage(additionalBytes int64) <span class="cov8" title="1">{
+        ti.mu.Lock()
+        defer ti.mu.Unlock()
+        ti.currentMemory += additionalBytes
+}</span>
+
+// convertOTLPToTraceData converts OTLP format to internal TraceData format
+func (ti *DefaultTraceIngestor) convertOTLPToTraceData(otlpTrace OTLPTrace, metrics *IngestMetrics) (*models.TraceData, error) <span class="cov8" title="1">{
+        if len(otlpTrace.ResourceSpans) == 0 </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("no resource spans found in trace data")
+        }</span>
+        
+        <span class="cov8" title="1">traceData := &amp;models.TraceData{
+                Spans: make(map[string]*models.Span),
+        }
+        
+        // Process all resource spans
+        for _, resourceSpan := range otlpTrace.ResourceSpans </span><span class="cov8" title="1">{
+                for _, scopeSpan := range resourceSpan.ScopeSpans </span><span class="cov8" title="1">{
+                        for _, otlpSpan := range scopeSpan.Spans </span><span class="cov8" title="1">{
+                                span, err := ti.convertOTLPSpan(otlpSpan)
+                                if err != nil </span><span class="cov8" title="1">{
+                                        return nil, fmt.Errorf("failed to convert span %s: %w", otlpSpan.SpanID, err)
+                                }</span>
+                                
+                                // Set trace ID if not set
+                                <span class="cov8" title="1">if traceData.TraceID == "" </span><span class="cov8" title="1">{
+                                        traceData.TraceID = span.TraceID
+                                }</span>
+                                
+                                // Add to spans map
+                                <span class="cov8" title="1">traceData.Spans[span.SpanID] = span
+                                metrics.TotalSpans++</span>
+                        }
+                }
+        }
+        
+        <span class="cov8" title="1">if len(traceData.Spans) == 0 </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("no spans found in trace data")
+        }</span>
+        
+        <span class="cov8" title="1">return traceData, nil</span>
+}
+
+// convertOTLPSpan converts an OTLP span to internal Span format
+func (ti *DefaultTraceIngestor) convertOTLPSpan(otlpSpan OTLPSpan) (*models.Span, error) <span class="cov8" title="1">{
+        // Parse timestamps
+        startTime, err := parseNanoTimestamp(otlpSpan.StartTimeUnixNano)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("invalid start time: %w", err)
+        }</span>
+        
+        <span class="cov8" title="1">endTime, err := parseNanoTimestamp(otlpSpan.EndTimeUnixNano)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid end time: %w", err)
+        }</span>
+        
+        // Convert attributes
+        <span class="cov8" title="1">attributes := make(map[string]interface{})
+        for _, attr := range otlpSpan.Attributes </span><span class="cov8" title="1">{
+                attributes[attr.Key] = attr.Value
+        }</span>
+        
+        // Convert status
+        <span class="cov8" title="1">status := models.SpanStatus{
+                Code:    convertStatusCode(otlpSpan.Status.Code),
+                Message: otlpSpan.Status.Message,
+        }
+        
+        // Convert events
+        var events []models.SpanEvent
+        for _, event := range otlpSpan.Events </span><span class="cov8" title="1">{
+                eventTime, err := parseNanoTimestamp(event.TimeUnixNano)
+                if err != nil </span><span class="cov0" title="0">{
+                        continue</span> // Skip invalid events
+                }
+                
+                <span class="cov8" title="1">eventAttrs := make(map[string]interface{})
+                for _, attr := range event.Attributes </span><span class="cov8" title="1">{
+                        eventAttrs[attr.Key] = attr.Value
+                }</span>
+                
+                <span class="cov8" title="1">events = append(events, models.SpanEvent{
+                        Name:       event.Name,
+                        Timestamp:  eventTime,
+                        Attributes: eventAttrs,
+                })</span>
+        }
+        
+        <span class="cov8" title="1">span := &amp;models.Span{
+                SpanID:     otlpSpan.SpanID,
+                TraceID:    otlpSpan.TraceID,
+                ParentID:   otlpSpan.ParentSpanID,
+                Name:       otlpSpan.Name,
+                StartTime:  startTime,
+                EndTime:    endTime,
+                Status:     status,
+                Attributes: attributes,
+                Events:     events,
+        }
+        
+        return span, nil</span>
+}
+
+// parseNanoTimestamp parses a nanosecond timestamp string
+func parseNanoTimestamp(timestampStr string) (int64, error) <span class="cov8" title="1">{
+        if timestampStr == "" </span><span class="cov8" title="1">{
+                return 0, fmt.Errorf("empty timestamp")
+        }</span>
+        
+        // Try to parse as int64 directly (nanoseconds since epoch)
+        <span class="cov8" title="1">var timestamp int64
+        n, err := fmt.Sscanf(timestampStr, "%d", &amp;timestamp)
+        if err != nil </span><span class="cov8" title="1">{
+                return 0, fmt.Errorf("failed to parse timestamp %s: %w", timestampStr, err)
+        }</span>
+        <span class="cov8" title="1">if n != 1 </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("failed to parse timestamp %s: invalid format", timestampStr)
+        }</span>
+        
+        // Validate that the entire string was consumed (no extra characters)
+        <span class="cov8" title="1">var extra string
+        if _, err := fmt.Sscanf(timestampStr, "%d%s", &amp;timestamp, &amp;extra); err == nil &amp;&amp; extra != "" </span><span class="cov8" title="1">{
+                return 0, fmt.Errorf("failed to parse timestamp %s: contains non-numeric characters", timestampStr)
+        }</span>
+        
+        <span class="cov8" title="1">return timestamp, nil</span>
+}
+
+// convertStatusCode converts OTLP status code to string
+func convertStatusCode(code int) string <span class="cov8" title="1">{
+        switch code </span>{
+        case 0:<span class="cov8" title="1">
+                return "UNSET"</span>
+        case 1:<span class="cov8" title="1">
+                return "OK"</span>
+        case 2:<span class="cov8" title="1">
+                return "ERROR"</span>
+        default:<span class="cov8" title="1">
+                return "UNKNOWN"</span>
+        }
+}
+
+// TraceStore methods
+
+// SetTraceData sets the trace data for the store
+func (ts *TraceStore) SetTraceData(traceData *models.TraceData) <span class="cov8" title="1">{
+        ts.mu.Lock()
+        defer ts.mu.Unlock()
+        
+        ts.traceData = traceData
+        ts.buildIndexes()
+}</span>
+
+// buildIndexes builds search indexes for efficient querying
+func (ts *TraceStore) buildIndexes() <span class="cov8" title="1">{
+        // Clear existing indexes
+        ts.spanIndex = make(map[string]*models.Span)
+        ts.nameIndex = make(map[string][]*models.Span)
+        ts.operationIndex = make(map[string][]*models.Span)
+        
+        if ts.traceData == nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+        
+        // Build indexes
+        <span class="cov8" title="1">for spanID, span := range ts.traceData.Spans </span><span class="cov8" title="1">{
+                // Span ID index
+                ts.spanIndex[spanID] = span
+                
+                // Name index
+                ts.nameIndex[span.Name] = append(ts.nameIndex[span.Name], span)
+                
+                // Operation ID index (from attributes)
+                if operationID, ok := span.Attributes["operation.id"].(string); ok </span><span class="cov8" title="1">{
+                        ts.operationIndex[operationID] = append(ts.operationIndex[operationID], span)
+                }</span>
+        }
+}
+
+// FindSpanByID implements the TraceQuery interface
+func (ts *TraceStore) FindSpanByID(spanID string) *models.Span <span class="cov8" title="1">{
+        ts.mu.RLock()
+        defer ts.mu.RUnlock()
+        return ts.spanIndex[spanID]
+}</span>
+
+// FindSpansByName implements the TraceQuery interface
+func (ts *TraceStore) FindSpansByName(name string) []*models.Span <span class="cov8" title="1">{
+        ts.mu.RLock()
+        defer ts.mu.RUnlock()
+        return ts.nameIndex[name]
+}</span>
+
+// FindSpansByOperationID implements the TraceQuery interface
+func (ts *TraceStore) FindSpansByOperationID(operationID string) []*models.Span <span class="cov8" title="1">{
+        ts.mu.RLock()
+        defer ts.mu.RUnlock()
+        return ts.operationIndex[operationID]
+}</span>
+
+// GetRootSpan implements the TraceQuery interface
+func (ts *TraceStore) GetRootSpan() *models.Span <span class="cov8" title="1">{
+        ts.mu.RLock()
+        defer ts.mu.RUnlock()
+        
+        if ts.traceData != nil </span><span class="cov8" title="1">{
+                return ts.traceData.RootSpan
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// GetAllSpans implements the TraceQuery interface
+func (ts *TraceStore) GetAllSpans() []*models.Span <span class="cov8" title="1">{
+        ts.mu.RLock()
+        defer ts.mu.RUnlock()
+        
+        if ts.traceData == nil </span><span class="cov8" title="1">{
+                return []*models.Span{}
+        }</span>
+        
+        <span class="cov8" title="1">spans := make([]*models.Span, 0, len(ts.traceData.Spans))
+        for _, span := range ts.traceData.Spans </span><span class="cov8" title="1">{
+                spans = append(spans, span)
+        }</span>
+        <span class="cov8" title="1">return spans</span>
+}
+
+// GetTraceData returns the underlying trace data
+func (ts *TraceStore) GetTraceData() *models.TraceData <span class="cov8" title="1">{
+        ts.mu.RLock()
+        defer ts.mu.RUnlock()
+        return ts.traceData
+}</span>
+
+// GetSpanCount returns the number of spans in the store
+func (ts *TraceStore) GetSpanCount() int <span class="cov8" title="1">{
+        ts.mu.RLock()
+        defer ts.mu.RUnlock()
+        
+        if ts.traceData == nil </span><span class="cov8" title="1">{
+                return 0
+        }</span>
+        <span class="cov8" title="1">return len(ts.traceData.Spans)</span>
+}
+
+// IngestMetrics methods
+
+// Finish marks the ingestion as finished and calculates final metrics
+func (im *IngestMetrics) Finish() <span class="cov8" title="1">{
+        im.mu.Lock()
+        defer im.mu.Unlock()
+        im.EndTime = time.Now()
+        im.ProcessingTime = im.EndTime.Sub(im.StartTime)
+}</span>
+
+// GetSummary returns a summary of ingestion metrics
+func (im *IngestMetrics) GetSummary() map[string]interface{} <span class="cov8" title="1">{
+        im.mu.RLock()
+        defer im.mu.RUnlock()
+        
+        return map[string]interface{}{
+                "total_spans":      im.TotalSpans,
+                "processed_spans":  im.ProcessedSpans,
+                "memory_used":      im.MemoryUsed,
+                "file_size":        im.FileSize,
+                "processing_time":  im.ProcessingTime.String(),
+                "spans_per_second": float64(im.ProcessedSpans) / im.ProcessingTime.Seconds(),
+        }
+}</span>
+
+// GetProcessingRate returns the processing rate in spans per second
+func (im *IngestMetrics) GetProcessingRate() float64 <span class="cov8" title="1">{
+        im.mu.RLock()
+        defer im.mu.RUnlock()
+        
+        if im.ProcessingTime.Seconds() == 0 </span><span class="cov0" title="0">{
+                return 0
+        }</span>
+        <span class="cov8" title="1">return float64(im.ProcessedSpans) / im.ProcessingTime.Seconds()</span>
+}</pre>
+		
+		<pre class="file" id="file1" style="display: none">package ingestor
+
+import (
+        "bufio"
+        "encoding/json"
+        "fmt"
+        "io"
+        "runtime"
+        "sync"
+        "time"
+
+        "flowspec-cli/internal/models"
+)
+
+// StreamingIngestor provides streaming ingestion capabilities for large trace files
+type StreamingIngestor struct {
+        *DefaultTraceIngestor
+        chunkSize       int
+        maxMemoryUsage  int64
+        progressCallback func(processed, total int64)
+        mu              sync.RWMutex
+}
+
+// StreamingConfig holds configuration for streaming ingestion
+type StreamingConfig struct {
+        ChunkSize        int                           // Size of each processing chunk
+        MaxMemoryUsage   int64                         // Maximum memory usage in bytes
+        ProgressCallback func(processed, total int64) // Progress callback function
+        EnableGC         bool                          // Enable aggressive garbage collection
+        GCInterval       time.Duration                 // Interval for garbage collection
+}
+
+// ChunkProcessor processes individual chunks of trace data
+type ChunkProcessor struct {
+        spans       []*models.Span
+        errors      []error
+        memoryUsed  int64
+        mu          sync.Mutex
+}
+
+// MemoryMonitor monitors and controls memory usage during ingestion
+type MemoryMonitor struct {
+        maxMemory     int64
+        currentMemory int64
+        gcThreshold   float64 // Trigger GC when memory usage exceeds this percentage
+        mu            sync.RWMutex
+}
+
+// ProgressTracker tracks ingestion progress
+type ProgressTracker struct {
+        totalBytes     int64
+        processedBytes int64
+        startTime      time.Time
+        callback       func(processed, total int64)
+        mu             sync.RWMutex
+}
+
+// DefaultStreamingConfig returns a default streaming configuration
+func DefaultStreamingConfig() *StreamingConfig <span class="cov8" title="1">{
+        return &amp;StreamingConfig{
+                ChunkSize:      1024 * 1024, // 1MB chunks
+                MaxMemoryUsage: 500 * 1024 * 1024, // 500MB max memory
+                EnableGC:       true,
+                GCInterval:     5 * time.Second,
+        }
+}</span>
+
+// NewStreamingIngestor creates a new streaming ingestor
+func NewStreamingIngestor(config *StreamingConfig) *StreamingIngestor <span class="cov8" title="1">{
+        if config == nil </span><span class="cov8" title="1">{
+                config = DefaultStreamingConfig()
+        }</span>
+        
+        <span class="cov8" title="1">baseIngestor := NewTraceIngestor()
+        baseIngestor.SetMemoryLimit(config.MaxMemoryUsage / (1024 * 1024)) // Convert to MB
+        
+        return &amp;StreamingIngestor{
+                DefaultTraceIngestor: baseIngestor,
+                chunkSize:            config.ChunkSize,
+                maxMemoryUsage:       config.MaxMemoryUsage,
+                progressCallback:     config.ProgressCallback,
+        }</span>
+}
+
+// NewMemoryMonitor creates a new memory monitor
+func NewMemoryMonitor(maxMemory int64) *MemoryMonitor <span class="cov8" title="1">{
+        return &amp;MemoryMonitor{
+                maxMemory:   maxMemory,
+                gcThreshold: 0.8, // Trigger GC at 80% memory usage
+        }
+}</span>
+
+// NewProgressTracker creates a new progress tracker
+func NewProgressTracker(totalBytes int64, callback func(processed, total int64)) *ProgressTracker <span class="cov8" title="1">{
+        return &amp;ProgressTracker{
+                totalBytes: totalBytes,
+                startTime:  time.Now(),
+                callback:   callback,
+        }
+}</span>
+
+// IngestFromReaderStreaming ingests trace data using streaming approach
+func (si *StreamingIngestor) IngestFromReaderStreaming(reader io.Reader, totalSize int64) (*models.TraceData, error) <span class="cov8" title="1">{
+        // Initialize memory monitor
+        monitor := NewMemoryMonitor(si.maxMemoryUsage)
+        
+        // Initialize progress tracker
+        var tracker *ProgressTracker
+        if si.progressCallback != nil </span><span class="cov8" title="1">{
+                tracker = NewProgressTracker(totalSize, si.progressCallback)
+        }</span>
+        
+        // Start memory monitoring goroutine
+        <span class="cov8" title="1">stopMonitoring := make(chan bool)
+        go si.monitorMemory(monitor, stopMonitoring)
+        defer func() </span><span class="cov8" title="1">{ stopMonitoring &lt;- true }</span>()
+        
+        // Process in chunks
+        <span class="cov8" title="1">traceData, err := si.processInChunks(reader, monitor, tracker)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        
+        // Build span tree
+        <span class="cov8" title="1">if err := traceData.BuildSpanTree(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to build span tree: %w", err)
+        }</span>
+        
+        <span class="cov8" title="1">return traceData, nil</span>
+}
+
+// processInChunks processes the input stream in manageable chunks
+func (si *StreamingIngestor) processInChunks(reader io.Reader, monitor *MemoryMonitor, tracker *ProgressTracker) (*models.TraceData, error) <span class="cov8" title="1">{
+        // Use a buffered reader for efficient reading
+        bufferedReader := bufio.NewReaderSize(reader, si.chunkSize)
+        
+        // Read the entire JSON structure first to understand the format
+        // For OTLP JSON, we need to parse the complete structure
+        data, err := io.ReadAll(bufferedReader)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to read trace data: %w", err)
+        }</span>
+        
+        // Update progress
+        <span class="cov8" title="1">if tracker != nil </span><span class="cov8" title="1">{
+                tracker.UpdateProgress(int64(len(data)))
+        }</span>
+        
+        // Check memory usage before processing
+        <span class="cov8" title="1">if err := monitor.CheckMemoryLimit(int64(len(data))); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        
+        // Parse JSON in chunks if possible, otherwise parse normally
+        <span class="cov8" title="1">if len(data) &gt; si.chunkSize*2 </span><span class="cov8" title="1">{ // Use chunked processing for files larger than 2x chunk size
+                return si.parseJSONInChunks(data, monitor, tracker)
+        }</span>
+        
+        // For smaller files, use normal parsing
+        <span class="cov8" title="1">return si.parseJSONNormally(data, monitor)</span>
+}
+
+// parseJSONInChunks attempts to parse large JSON files in chunks
+func (si *StreamingIngestor) parseJSONInChunks(data []byte, monitor *MemoryMonitor, tracker *ProgressTracker) (*models.TraceData, error) <span class="cov8" title="1">{
+        // For OTLP JSON format, we need to parse the complete structure
+        // Chunked JSON parsing is complex, so we'll use memory-efficient parsing instead
+        return si.parseJSONWithMemoryOptimization(data, monitor, tracker)
+}</span>
+
+// parseJSONWithMemoryOptimization parses JSON with memory optimization techniques
+func (si *StreamingIngestor) parseJSONWithMemoryOptimization(data []byte, monitor *MemoryMonitor, tracker *ProgressTracker) (*models.TraceData, error) <span class="cov8" title="1">{
+        // Parse OTLP structure
+        var otlpTrace OTLPTrace
+        if err := json.Unmarshal(data, &amp;otlpTrace); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to parse OTLP JSON: %w", err)
+        }</span>
+        
+        // Process resource spans one by one to minimize memory usage
+        <span class="cov8" title="1">traceData := &amp;models.TraceData{
+                Spans: make(map[string]*models.Span),
+        }
+        
+        totalResourceSpans := len(otlpTrace.ResourceSpans)
+        processedResourceSpans := 0
+        
+        for _, resourceSpan := range otlpTrace.ResourceSpans </span><span class="cov8" title="1">{
+                // Check memory before processing each resource span
+                if err := monitor.CheckMemoryLimit(0); err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                
+                // Process scope spans
+                <span class="cov8" title="1">for _, scopeSpan := range resourceSpan.ScopeSpans </span><span class="cov8" title="1">{
+                        // Process spans in batches
+                        batchSize := 100 // Process 100 spans at a time
+                        for i := 0; i &lt; len(scopeSpan.Spans); i += batchSize </span><span class="cov8" title="1">{
+                                end := i + batchSize
+                                if end &gt; len(scopeSpan.Spans) </span><span class="cov8" title="1">{
+                                        end = len(scopeSpan.Spans)
+                                }</span>
+                                
+                                // Process batch
+                                <span class="cov8" title="1">batch := scopeSpan.Spans[i:end]
+                                if err := si.processBatch(batch, traceData, monitor); err != nil </span><span class="cov0" title="0">{
+                                        return nil, err
+                                }</span>
+                                
+                                // Update progress
+                                <span class="cov8" title="1">if tracker != nil </span><span class="cov8" title="1">{
+                                        progress := float64(processedResourceSpans)/float64(totalResourceSpans) + 
+                                                float64(end)/float64(len(scopeSpan.Spans))/float64(totalResourceSpans)
+                                        tracker.UpdateProgressPercent(progress)
+                                }</span>
+                                
+                                // Force garbage collection periodically
+                                <span class="cov8" title="1">if i%500 == 0 </span><span class="cov8" title="1">{
+                                        runtime.GC()
+                                }</span>
+                        }
+                }
+                
+                <span class="cov8" title="1">processedResourceSpans++</span>
+        }
+        
+        <span class="cov8" title="1">return traceData, nil</span>
+}
+
+// parseJSONNormally parses JSON using the normal approach for smaller files
+func (si *StreamingIngestor) parseJSONNormally(data []byte, monitor *MemoryMonitor) (*models.TraceData, error) <span class="cov8" title="1">{
+        // Check memory before parsing
+        if err := monitor.CheckMemoryLimit(int64(len(data))); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        
+        // Parse OTLP JSON
+        <span class="cov8" title="1">var otlpTrace OTLPTrace
+        if err := json.Unmarshal(data, &amp;otlpTrace); err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to parse OTLP JSON: %w", err)
+        }</span>
+        
+        // Convert to internal format
+        <span class="cov8" title="1">metrics := NewIngestMetrics()
+        traceData, err := si.convertOTLPToTraceData(otlpTrace, metrics)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to convert OTLP data: %w", err)
+        }</span>
+        
+        <span class="cov8" title="1">return traceData, nil</span>
+}
+
+// processBatch processes a batch of OTLP spans
+func (si *StreamingIngestor) processBatch(batch []OTLPSpan, traceData *models.TraceData, monitor *MemoryMonitor) error <span class="cov8" title="1">{
+        for _, otlpSpan := range batch </span><span class="cov8" title="1">{
+                // Convert span
+                span, err := si.convertOTLPSpan(otlpSpan)
+                if err != nil </span><span class="cov0" title="0">{
+                        continue</span> // Skip invalid spans
+                }
+                
+                // Set trace ID if not set
+                <span class="cov8" title="1">if traceData.TraceID == "" </span><span class="cov8" title="1">{
+                        traceData.TraceID = span.TraceID
+                }</span>
+                
+                // Add to spans map
+                <span class="cov8" title="1">traceData.Spans[span.SpanID] = span
+                
+                // Check memory usage periodically
+                if len(traceData.Spans)%100 == 0 </span><span class="cov8" title="1">{
+                        if err := monitor.CheckMemoryLimit(0); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                }
+        }
+        
+        <span class="cov8" title="1">return nil</span>
+}
+
+// monitorMemory monitors memory usage in a separate goroutine
+func (si *StreamingIngestor) monitorMemory(monitor *MemoryMonitor, stop &lt;-chan bool) <span class="cov8" title="1">{
+        ticker := time.NewTicker(1 * time.Second)
+        defer ticker.Stop()
+        
+        for </span><span class="cov8" title="1">{
+                select </span>{
+                case &lt;-stop:<span class="cov8" title="1">
+                        return</span>
+                case &lt;-ticker.C:<span class="cov0" title="0">
+                        monitor.UpdateMemoryUsage()
+                        
+                        // Trigger GC if memory usage is high
+                        if monitor.ShouldTriggerGC() </span><span class="cov0" title="0">{
+                                runtime.GC()
+                        }</span>
+                }
+        }
+}
+
+// MemoryMonitor methods
+
+// CheckMemoryLimit checks if adding the specified bytes would exceed memory limit
+func (mm *MemoryMonitor) CheckMemoryLimit(additionalBytes int64) error <span class="cov8" title="1">{
+        mm.mu.RLock()
+        defer mm.mu.RUnlock()
+        
+        var m runtime.MemStats
+        runtime.ReadMemStats(&amp;m)
+        
+        currentUsage := int64(m.Alloc)
+        if currentUsage+additionalBytes &gt; mm.maxMemory </span><span class="cov8" title="1">{
+                return fmt.Errorf("memory usage would exceed limit: current=%d, additional=%d, limit=%d", 
+                        currentUsage, additionalBytes, mm.maxMemory)
+        }</span>
+        
+        <span class="cov8" title="1">return nil</span>
+}
+
+// UpdateMemoryUsage updates the current memory usage
+func (mm *MemoryMonitor) UpdateMemoryUsage() <span class="cov8" title="1">{
+        mm.mu.Lock()
+        defer mm.mu.Unlock()
+        
+        var m runtime.MemStats
+        runtime.ReadMemStats(&amp;m)
+        mm.currentMemory = int64(m.Alloc)
+}</span>
+
+// ShouldTriggerGC returns true if garbage collection should be triggered
+func (mm *MemoryMonitor) ShouldTriggerGC() bool <span class="cov0" title="0">{
+        mm.mu.RLock()
+        defer mm.mu.RUnlock()
+        
+        return float64(mm.currentMemory)/float64(mm.maxMemory) &gt; mm.gcThreshold
+}</span>
+
+// GetMemoryUsage returns current memory usage
+func (mm *MemoryMonitor) GetMemoryUsage() int64 <span class="cov8" title="1">{
+        mm.mu.RLock()
+        defer mm.mu.RUnlock()
+        return mm.currentMemory
+}</span>
+
+// GetMemoryUsagePercent returns current memory usage as percentage
+func (mm *MemoryMonitor) GetMemoryUsagePercent() float64 <span class="cov8" title="1">{
+        mm.mu.RLock()
+        defer mm.mu.RUnlock()
+        return float64(mm.currentMemory) / float64(mm.maxMemory) * 100
+}</span>
+
+// ProgressTracker methods
+
+// UpdateProgress updates the progress with processed bytes
+func (pt *ProgressTracker) UpdateProgress(processedBytes int64) <span class="cov8" title="1">{
+        pt.mu.Lock()
+        defer pt.mu.Unlock()
+        
+        pt.processedBytes = processedBytes
+        
+        if pt.callback != nil </span><span class="cov8" title="1">{
+                pt.callback(pt.processedBytes, pt.totalBytes)
+        }</span>
+}
+
+// UpdateProgressPercent updates progress with a percentage (0.0 to 1.0)
+func (pt *ProgressTracker) UpdateProgressPercent(percent float64) <span class="cov8" title="1">{
+        pt.mu.Lock()
+        defer pt.mu.Unlock()
+        
+        pt.processedBytes = int64(float64(pt.totalBytes) * percent)
+        
+        if pt.callback != nil </span><span class="cov8" title="1">{
+                pt.callback(pt.processedBytes, pt.totalBytes)
+        }</span>
+}
+
+// GetProgress returns current progress information
+func (pt *ProgressTracker) GetProgress() (processed, total int64, percent float64, elapsed time.Duration) <span class="cov8" title="1">{
+        pt.mu.RLock()
+        defer pt.mu.RUnlock()
+        
+        processed = pt.processedBytes
+        total = pt.totalBytes
+        if total &gt; 0 </span><span class="cov8" title="1">{
+                percent = float64(processed) / float64(total) * 100
+        }</span>
+        <span class="cov8" title="1">elapsed = time.Since(pt.startTime)
+        
+        return</span>
+}
+
+// GetETA returns estimated time of arrival
+func (pt *ProgressTracker) GetETA() time.Duration <span class="cov8" title="1">{
+        processed, total, _, elapsed := pt.GetProgress()
+        
+        if processed == 0 </span><span class="cov8" title="1">{
+                return 0
+        }</span>
+        
+        <span class="cov8" title="1">rate := float64(processed) / elapsed.Seconds()
+        remaining := total - processed
+        
+        if rate &gt; 0 </span><span class="cov8" title="1">{
+                return time.Duration(float64(remaining)/rate) * time.Second
+        }</span>
+        
+        <span class="cov0" title="0">return 0</span>
+}
+
+// ChunkProcessor methods
+
+// NewChunkProcessor creates a new chunk processor
+func NewChunkProcessor() *ChunkProcessor <span class="cov8" title="1">{
+        return &amp;ChunkProcessor{
+                spans:  make([]*models.Span, 0),
+                errors: make([]error, 0),
+        }
+}</span>
+
+// AddSpan adds a span to the processor
+func (cp *ChunkProcessor) AddSpan(span *models.Span) <span class="cov8" title="1">{
+        cp.mu.Lock()
+        defer cp.mu.Unlock()
+        
+        cp.spans = append(cp.spans, span)
+        cp.memoryUsed += cp.estimateSpanMemory(span)
+}</span>
+
+// AddError adds an error to the processor
+func (cp *ChunkProcessor) AddError(err error) <span class="cov8" title="1">{
+        cp.mu.Lock()
+        defer cp.mu.Unlock()
+        
+        cp.errors = append(cp.errors, err)
+}</span>
+
+// GetResults returns the processed results
+func (cp *ChunkProcessor) GetResults() ([]*models.Span, []error, int64) <span class="cov8" title="1">{
+        cp.mu.Lock()
+        defer cp.mu.Unlock()
+        
+        return cp.spans, cp.errors, cp.memoryUsed
+}</span>
+
+// Clear clears the processor state
+func (cp *ChunkProcessor) Clear() <span class="cov8" title="1">{
+        cp.mu.Lock()
+        defer cp.mu.Unlock()
+        
+        cp.spans = cp.spans[:0]
+        cp.errors = cp.errors[:0]
+        cp.memoryUsed = 0
+}</span>
+
+// estimateSpanMemory estimates memory usage of a span
+func (cp *ChunkProcessor) estimateSpanMemory(span *models.Span) int64 <span class="cov8" title="1">{
+        // Rough estimation of span memory usage
+        baseSize := int64(200) // Base struct size
+        
+        // Add string fields
+        baseSize += int64(len(span.SpanID))
+        baseSize += int64(len(span.TraceID))
+        baseSize += int64(len(span.ParentID))
+        baseSize += int64(len(span.Name))
+        baseSize += int64(len(span.Status.Code))
+        baseSize += int64(len(span.Status.Message))
+        
+        // Add attributes (rough estimation)
+        for key, value := range span.Attributes </span><span class="cov8" title="1">{
+                baseSize += int64(len(key))
+                if str, ok := value.(string); ok </span><span class="cov8" title="1">{
+                        baseSize += int64(len(str))
+                }</span> else<span class="cov0" title="0"> {
+                        baseSize += 50 // Rough estimate for other types
+                }</span>
+        }
+        
+        // Add events
+        <span class="cov8" title="1">for _, event := range span.Events </span><span class="cov0" title="0">{
+                baseSize += int64(len(event.Name))
+                for key, value := range event.Attributes </span><span class="cov0" title="0">{
+                        baseSize += int64(len(key))
+                        if str, ok := value.(string); ok </span><span class="cov0" title="0">{
+                                baseSize += int64(len(str))
+                        }</span> else<span class="cov0" title="0"> {
+                                baseSize += 50
+                        }</span>
+                }
+        }
+        
+        <span class="cov8" title="1">return baseSize</span>
+}
+
+// Utility functions for memory optimization
+
+// OptimizeMemoryUsage performs memory optimization operations
+func OptimizeMemoryUsage() <span class="cov8" title="1">{
+        // Force garbage collection
+        runtime.GC()
+        
+        // Return memory to OS
+        runtime.GC()
+        runtime.GC() // Call twice for better effect
+}</span>
+
+// GetMemoryStats returns current memory statistics
+func GetMemoryStats() map[string]interface{} <span class="cov8" title="1">{
+        var m runtime.MemStats
+        runtime.ReadMemStats(&amp;m)
+        
+        return map[string]interface{}{
+                "alloc":         m.Alloc,         // Currently allocated bytes
+                "total_alloc":   m.TotalAlloc,    // Total allocated bytes (cumulative)
+                "sys":           m.Sys,           // System memory obtained from OS
+                "num_gc":        m.NumGC,         // Number of GC cycles
+                "gc_cpu_fraction": m.GCCPUFraction, // Fraction of CPU time used by GC
+                "heap_alloc":    m.HeapAlloc,     // Heap allocated bytes
+                "heap_sys":      m.HeapSys,       // Heap system bytes
+                "heap_objects":  m.HeapObjects,   // Number of heap objects
+        }
+}</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

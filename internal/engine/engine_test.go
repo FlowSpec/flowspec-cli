@@ -1,10 +1,24 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package engine
 
 import (
 	"testing"
 	"time"
 
-	"flowspec-cli/internal/models"
+	"github.com/flowspec/flowspec-cli/internal/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +50,7 @@ func (m *MockAssertionEvaluator) ValidateAssertion(assertion map[string]interfac
 
 func TestNewAlignmentEngine(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	assert.NotNil(t, engine)
 	assert.NotNil(t, engine.config)
 	assert.Equal(t, 4, engine.config.MaxConcurrency)
@@ -54,9 +68,9 @@ func TestNewAlignmentEngineWithConfig(t *testing.T) {
 		StrictMode:       true,
 		SkipMissingSpans: false,
 	}
-	
+
 	engine := NewAlignmentEngineWithConfig(config)
-	
+
 	assert.NotNil(t, engine)
 	assert.Equal(t, config, engine.config)
 	assert.Equal(t, 8, engine.config.MaxConcurrency)
@@ -68,7 +82,7 @@ func TestNewAlignmentEngineWithConfig(t *testing.T) {
 
 func TestDefaultEngineConfig(t *testing.T) {
 	config := DefaultEngineConfig()
-	
+
 	assert.NotNil(t, config)
 	assert.Equal(t, 4, config.MaxConcurrency)
 	assert.Equal(t, 30*time.Second, config.Timeout)
@@ -108,7 +122,7 @@ func TestValidateEngineConfig(t *testing.T) {
 			errorMsg:    "Timeout must be positive",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := ValidateEngineConfig(tc.config)
@@ -125,12 +139,12 @@ func TestValidateEngineConfig(t *testing.T) {
 func TestSetAndGetEvaluator(t *testing.T) {
 	engine := NewAlignmentEngine()
 	mockEvaluator := &MockAssertionEvaluator{}
-	
+
 	// Initially has default JSONLogic evaluator
 	assert.NotNil(t, engine.GetEvaluator())
 	_, ok := engine.GetEvaluator().(*JSONLogicEvaluator)
 	assert.True(t, ok, "Default evaluator should be JSONLogicEvaluator")
-	
+
 	// Set custom evaluator
 	engine.SetEvaluator(mockEvaluator)
 	assert.Equal(t, mockEvaluator, engine.GetEvaluator())
@@ -142,16 +156,16 @@ func TestNewEvaluationContext(t *testing.T) {
 		TraceID: "test-trace",
 		Name:    "test-operation",
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "test-trace",
 		Spans: map[string]*models.Span{
 			"test-span": span,
 		},
 	}
-	
+
 	context := NewEvaluationContext(span, traceData)
-	
+
 	assert.NotNil(t, context)
 	assert.Equal(t, span, context.Span)
 	assert.Equal(t, traceData, context.TraceData)
@@ -161,22 +175,22 @@ func TestNewEvaluationContext(t *testing.T) {
 
 func TestEvaluationContext_Variables(t *testing.T) {
 	context := NewEvaluationContext(nil, nil)
-	
+
 	// Test setting and getting variables
 	context.SetVariable("test_key", "test_value")
 	value, exists := context.GetVariable("test_key")
 	assert.True(t, exists)
 	assert.Equal(t, "test_value", value)
-	
+
 	// Test non-existent variable
 	value, exists = context.GetVariable("non_existent")
 	assert.False(t, exists)
 	assert.Nil(t, value)
-	
+
 	// Test getting all variables
 	context.SetVariable("key1", "value1")
 	context.SetVariable("key2", "value2")
-	
+
 	allVars := context.GetAllVariables()
 	assert.Len(t, allVars, 3) // test_key, key1, key2
 	assert.Equal(t, "test_value", allVars["test_key"])
@@ -186,7 +200,7 @@ func TestEvaluationContext_Variables(t *testing.T) {
 
 func TestNewSpecMatcher(t *testing.T) {
 	matcher := NewSpecMatcher()
-	
+
 	assert.NotNil(t, matcher)
 	assert.Len(t, matcher.matchStrategies, 3) // OperationID, SpanName, Attribute matchers
 }
@@ -194,26 +208,26 @@ func TestNewSpecMatcher(t *testing.T) {
 func TestSpecMatcher_AddStrategy(t *testing.T) {
 	matcher := NewSpecMatcher()
 	initialCount := len(matcher.matchStrategies)
-	
+
 	customMatcher := &AttributeMatcher{attributeKey: "custom.key"}
 	matcher.AddStrategy(customMatcher)
-	
+
 	assert.Len(t, matcher.matchStrategies, initialCount+1)
 }
 
 func TestOperationIDMatcher(t *testing.T) {
 	matcher := &OperationIDMatcher{}
-	
+
 	// Test matcher properties
 	assert.Equal(t, "operation_id", matcher.GetName())
 	assert.Equal(t, 100, matcher.GetPriority())
-	
+
 	// Create test data
 	spec := models.ServiceSpec{
 		OperationID: "testOperation",
 		Description: "Test operation",
 	}
-	
+
 	span1 := &models.Span{
 		SpanID:  "span1",
 		TraceID: "trace1",
@@ -222,7 +236,7 @@ func TestOperationIDMatcher(t *testing.T) {
 			"operation.id": "testOperation",
 		},
 	}
-	
+
 	span2 := &models.Span{
 		SpanID:  "span2",
 		TraceID: "trace1",
@@ -231,7 +245,7 @@ func TestOperationIDMatcher(t *testing.T) {
 			"operation.id": "otherOperation",
 		},
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "trace1",
 		Spans: map[string]*models.Span{
@@ -239,7 +253,7 @@ func TestOperationIDMatcher(t *testing.T) {
 			"span2": span2,
 		},
 	}
-	
+
 	// Test matching
 	matches, err := matcher.Match(spec, traceData)
 	assert.NoError(t, err)
@@ -249,29 +263,29 @@ func TestOperationIDMatcher(t *testing.T) {
 
 func TestSpanNameMatcher(t *testing.T) {
 	matcher := &SpanNameMatcher{}
-	
+
 	// Test matcher properties
 	assert.Equal(t, "span_name", matcher.GetName())
 	assert.Equal(t, 80, matcher.GetPriority())
-	
+
 	// Create test data
 	spec := models.ServiceSpec{
 		OperationID: "testOperation",
 		Description: "Test operation",
 	}
-	
+
 	span1 := &models.Span{
 		SpanID:  "span1",
 		TraceID: "trace1",
 		Name:    "testOperation", // Matches operation ID
 	}
-	
+
 	span2 := &models.Span{
 		SpanID:  "span2",
 		TraceID: "trace1",
 		Name:    "otherOperation",
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "trace1",
 		Spans: map[string]*models.Span{
@@ -279,7 +293,7 @@ func TestSpanNameMatcher(t *testing.T) {
 			"span2": span2,
 		},
 	}
-	
+
 	// Test matching
 	matches, err := matcher.Match(spec, traceData)
 	assert.NoError(t, err)
@@ -289,17 +303,17 @@ func TestSpanNameMatcher(t *testing.T) {
 
 func TestAttributeMatcher(t *testing.T) {
 	matcher := &AttributeMatcher{attributeKey: "operation.name"}
-	
+
 	// Test matcher properties
 	assert.Equal(t, "attribute_operation.name", matcher.GetName())
 	assert.Equal(t, 60, matcher.GetPriority())
-	
+
 	// Create test data
 	spec := models.ServiceSpec{
 		OperationID: "testOperation",
 		Description: "Test operation",
 	}
-	
+
 	span1 := &models.Span{
 		SpanID:  "span1",
 		TraceID: "trace1",
@@ -308,7 +322,7 @@ func TestAttributeMatcher(t *testing.T) {
 			"operation.name": "testOperation",
 		},
 	}
-	
+
 	span2 := &models.Span{
 		SpanID:  "span2",
 		TraceID: "trace1",
@@ -317,7 +331,7 @@ func TestAttributeMatcher(t *testing.T) {
 			"operation.name": "otherOperation",
 		},
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "trace1",
 		Spans: map[string]*models.Span{
@@ -325,7 +339,7 @@ func TestAttributeMatcher(t *testing.T) {
 			"span2": span2,
 		},
 	}
-	
+
 	// Test matching
 	matches, err := matcher.Match(spec, traceData)
 	assert.NoError(t, err)
@@ -335,13 +349,13 @@ func TestAttributeMatcher(t *testing.T) {
 
 func TestSpecMatcher_FindMatchingSpans(t *testing.T) {
 	matcher := NewSpecMatcher()
-	
+
 	// Create test data
 	spec := models.ServiceSpec{
 		OperationID: "testOperation",
 		Description: "Test operation",
 	}
-	
+
 	span1 := &models.Span{
 		SpanID:  "span1",
 		TraceID: "trace1",
@@ -350,13 +364,13 @@ func TestSpecMatcher_FindMatchingSpans(t *testing.T) {
 			"operation.id": "testOperation", // Should match with OperationIDMatcher
 		},
 	}
-	
+
 	span2 := &models.Span{
 		SpanID:  "span2",
 		TraceID: "trace1",
 		Name:    "testOperation", // Should match with SpanNameMatcher
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "trace1",
 		Spans: map[string]*models.Span{
@@ -364,7 +378,7 @@ func TestSpecMatcher_FindMatchingSpans(t *testing.T) {
 			"span2": span2,
 		},
 	}
-	
+
 	// Test finding matching spans
 	matches, err := matcher.FindMatchingSpans(spec, traceData)
 	assert.NoError(t, err)
@@ -374,13 +388,13 @@ func TestSpecMatcher_FindMatchingSpans(t *testing.T) {
 
 func TestSpecMatcher_FindMatchingSpans_NoMatches(t *testing.T) {
 	matcher := NewSpecMatcher()
-	
+
 	// Create test data with no matches
 	spec := models.ServiceSpec{
 		OperationID: "testOperation",
 		Description: "Test operation",
 	}
-	
+
 	span1 := &models.Span{
 		SpanID:  "span1",
 		TraceID: "trace1",
@@ -389,14 +403,14 @@ func TestSpecMatcher_FindMatchingSpans_NoMatches(t *testing.T) {
 			"operation.id": "differentOperation",
 		},
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "trace1",
 		Spans: map[string]*models.Span{
 			"span1": span1,
 		},
 	}
-	
+
 	// Test finding matching spans
 	matches, err := matcher.FindMatchingSpans(spec, traceData)
 	assert.NoError(t, err)
@@ -409,9 +423,9 @@ func TestAlignmentEngine_AlignSpecsWithTrace_EmptySpecs(t *testing.T) {
 		TraceID: "test-trace",
 		Spans:   map[string]*models.Span{},
 	}
-	
+
 	report, err := engine.AlignSpecsWithTrace([]models.ServiceSpec{}, traceData)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, report)
 	assert.Empty(t, report.Results)
@@ -426,9 +440,9 @@ func TestAlignmentEngine_AlignSpecsWithTrace_NilTraceData(t *testing.T) {
 			Description: "Test operation",
 		},
 	}
-	
+
 	report, err := engine.AlignSpecsWithTrace(specs, nil)
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, report)
 	assert.Contains(t, err.Error(), "trace data is empty or nil")
@@ -438,19 +452,19 @@ func TestAlignmentEngine_AlignSingleSpec_NoEvaluator(t *testing.T) {
 	engine := NewAlignmentEngine()
 	// Clear the default evaluator
 	engine.SetEvaluator(nil)
-	
+
 	spec := models.ServiceSpec{
 		OperationID: "testOp",
 		Description: "Test operation",
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "test-trace",
 		Spans:   map[string]*models.Span{},
 	}
-	
+
 	result, err := engine.AlignSingleSpec(spec, traceData)
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "no assertion evaluator configured")
@@ -459,12 +473,12 @@ func TestAlignmentEngine_AlignSingleSpec_NoEvaluator(t *testing.T) {
 func TestAlignmentEngine_AlignSingleSpec_NoMatchingSpans(t *testing.T) {
 	engine := NewAlignmentEngine()
 	engine.SetEvaluator(&MockAssertionEvaluator{})
-	
+
 	spec := models.ServiceSpec{
 		OperationID: "testOp",
 		Description: "Test operation",
 	}
-	
+
 	// Create trace data with no matching spans
 	span := &models.Span{
 		SpanID:  "span1",
@@ -474,16 +488,16 @@ func TestAlignmentEngine_AlignSingleSpec_NoMatchingSpans(t *testing.T) {
 			"operation.id": "differentOp",
 		},
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "trace1",
 		Spans: map[string]*models.Span{
 			"span1": span,
 		},
 	}
-	
+
 	result, err := engine.AlignSingleSpec(spec, traceData)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, models.StatusSkipped, result.Status) // Default config skips missing spans
@@ -493,7 +507,7 @@ func TestAlignmentEngine_AlignSingleSpec_NoMatchingSpans(t *testing.T) {
 
 func TestAlignmentEngine_AlignSingleSpec_WithMatchingSpan(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	// Set up mock evaluator
 	mockEvaluator := &MockAssertionEvaluator{
 		evaluateFunc: func(assertion map[string]interface{}, context *EvaluationContext) (*AssertionResult, error) {
@@ -507,7 +521,7 @@ func TestAlignmentEngine_AlignSingleSpec_WithMatchingSpan(t *testing.T) {
 		},
 	}
 	engine.SetEvaluator(mockEvaluator)
-	
+
 	spec := models.ServiceSpec{
 		OperationID: "testOp",
 		Description: "Test operation",
@@ -518,7 +532,7 @@ func TestAlignmentEngine_AlignSingleSpec_WithMatchingSpan(t *testing.T) {
 			"result": true,
 		},
 	}
-	
+
 	// Create trace data with matching span
 	span := &models.Span{
 		SpanID:  "span1",
@@ -528,27 +542,27 @@ func TestAlignmentEngine_AlignSingleSpec_WithMatchingSpan(t *testing.T) {
 			"operation.id": "testOp",
 		},
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "trace1",
 		Spans: map[string]*models.Span{
 			"span1": span,
 		},
 	}
-	
+
 	result, err := engine.AlignSingleSpec(spec, traceData)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "testOp", result.SpecOperationID)
 	assert.Len(t, result.Details, 2) // Precondition + Postcondition
 	assert.Greater(t, result.ExecutionTime, int64(0))
-	
+
 	// Check validation details
 	preconditionDetail := result.GetPreconditionDetails()
 	assert.Len(t, preconditionDetail, 1)
 	assert.Equal(t, "precondition", preconditionDetail[0].Type)
-	
+
 	postconditionDetail := result.GetPostconditionDetails()
 	assert.Len(t, postconditionDetail, 1)
 	assert.Equal(t, "postcondition", postconditionDetail[0].Type)
@@ -556,7 +570,7 @@ func TestAlignmentEngine_AlignSingleSpec_WithMatchingSpan(t *testing.T) {
 
 func TestPopulateEvaluationContext(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	span := &models.Span{
 		SpanID:    "test-span",
 		TraceID:   "test-trace",
@@ -572,7 +586,7 @@ func TestPopulateEvaluationContext(t *testing.T) {
 			"http.method":  "POST",
 		},
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "test-trace",
 		Spans: map[string]*models.Span{
@@ -580,45 +594,45 @@ func TestPopulateEvaluationContext(t *testing.T) {
 		},
 		RootSpan: span,
 	}
-	
+
 	context := NewEvaluationContext(span, traceData)
 	engine.populateEvaluationContext(context, span)
-	
+
 	// Check span attributes
 	serviceName, exists := context.GetVariable("service.name")
 	assert.True(t, exists)
 	assert.Equal(t, "test-service", serviceName)
-	
+
 	httpMethod, exists := context.GetVariable("http.method")
 	assert.True(t, exists)
 	assert.Equal(t, "POST", httpMethod)
-	
+
 	// Check span metadata
 	spanID, exists := context.GetVariable("span.id")
 	assert.True(t, exists)
 	assert.Equal(t, "test-span", spanID)
-	
+
 	spanName, exists := context.GetVariable("span.name")
 	assert.True(t, exists)
 	assert.Equal(t, "test-operation", spanName)
-	
+
 	duration, exists := context.GetVariable("span.duration")
 	assert.True(t, exists)
 	assert.Equal(t, int64(1000000000), duration) // 1 second in nanoseconds
-	
+
 	statusCode, exists := context.GetVariable("span.status.code")
 	assert.True(t, exists)
 	assert.Equal(t, "OK", statusCode)
-	
+
 	// Check trace metadata
 	traceID, exists := context.GetVariable("trace.id")
 	assert.True(t, exists)
 	assert.Equal(t, "test-trace", traceID)
-	
+
 	spanCount, exists := context.GetVariable("trace.span_count")
 	assert.True(t, exists)
 	assert.Equal(t, 1, spanCount)
-	
+
 	rootSpanID, exists := context.GetVariable("trace.root_span.id")
 	assert.True(t, exists)
 	assert.Equal(t, "test-span", rootSpanID)
@@ -629,28 +643,28 @@ func TestNewValidationContext(t *testing.T) {
 		OperationID: "testOp",
 		Description: "Test operation",
 	}
-	
+
 	span := &models.Span{
 		SpanID:  "test-span",
 		TraceID: "test-trace",
 		Name:    "test-operation",
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "test-trace",
 		Spans: map[string]*models.Span{
 			"test-span": span,
 		},
 	}
-	
+
 	context := NewValidationContext(spec, span, traceData)
-	
+
 	assert.NotNil(t, context)
 	assert.Equal(t, spec, context.GetSpec())
 	assert.Equal(t, span, context.GetSpan())
 	assert.Equal(t, traceData, context.GetTraceData())
 	assert.Greater(t, context.GetElapsedTime(), time.Duration(0))
-	
+
 	// Test variables
 	context.SetVariable("test_key", "test_value")
 	value, exists := context.GetVariable("test_key")

@@ -1,0 +1,48 @@
+{
+  "resourceSpans": [{
+    "resource": {
+      "attributes": [
+        {"key": "service.name", "value": {"stringValue": "user-service"}},
+        {"key": "service.version", "value": {"stringValue": "1.0.0"}}
+      ]
+    },
+    "scopeSpans": [{
+      "scope": {
+        "name": "user-service-tracer",
+        "version": "1.0.0"
+      },
+      "spans": [
+        {
+          "traceId": "fedcba0987654321fedcba0987654321",
+          "spanId": "5555666677778888",
+          "name": "createUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1640995400000000000",
+          "endTimeUnixNano": "1640995405000000000",
+          "status": {
+            "code": "STATUS_CODE_ERROR",
+            "message": "Internal server error"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "POST"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users"}},
+            {"key": "http.status_code", "value": {"intValue": 500}},
+            {"key": "request.body.email", "value": {"stringValue": "user@example.com"}},
+            {"key": "request.body.name", "value": {"stringValue": "Test User"}},
+            {"key": "request.body.password.length", "value": {"intValue": 12}},
+            {"key": "response.body.error", "value": {"stringValue": "Database connection failed"}}
+          ],
+          "events": [
+            {
+              "timeUnixNano": "1640995404000000000",
+              "name": "database.error",
+              "attributes": [
+                {"key": "error.type", "value": {"stringValue": "connection_timeout"}}
+              ]
+            }
+          ]
+        }
+      ]
+    }]
+  }]
+}

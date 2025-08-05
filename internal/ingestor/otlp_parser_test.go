@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package ingestor
 
 import (
@@ -12,35 +26,35 @@ import (
 
 func TestOTLPJSONParsing_ComplexTrace(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create complex OTLP trace with multiple resource spans
 	complexTrace := createComplexOTLPTrace()
 	reader := strings.NewReader(complexTrace)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	require.NoError(t, err)
 	assert.NotNil(t, traceData)
 	assert.Equal(t, "complex-trace-123", traceData.TraceID)
 	assert.Len(t, traceData.Spans, 5) // 1 root + 4 children across different services
-	
+
 	// Verify root span
 	rootSpan := traceData.RootSpan
 	assert.NotNil(t, rootSpan)
 	assert.Equal(t, "api-gateway", rootSpan.Name)
 	assert.Equal(t, "", rootSpan.ParentID)
-	
+
 	// Verify span tree structure
 	assert.NotNil(t, traceData.SpanTree)
 	assert.Equal(t, rootSpan.SpanID, traceData.SpanTree.Span.SpanID)
 	assert.Len(t, traceData.SpanTree.Children, 2) // Gateway calls 2 services
-	
+
 	// Verify service spans
 	userServiceSpan := traceData.FindSpanByID("span-user-service")
 	assert.NotNil(t, userServiceSpan)
 	assert.Equal(t, "user-service", userServiceSpan.Name)
 	assert.Equal(t, "user-service", userServiceSpan.Attributes["service.name"])
-	
+
 	orderServiceSpan := traceData.FindSpanByID("span-order-service")
 	assert.NotNil(t, orderServiceSpan)
 	assert.Equal(t, "order-service", orderServiceSpan.Name)
@@ -49,18 +63,18 @@ func TestOTLPJSONParsing_ComplexTrace(t *testing.T) {
 
 func TestOTLPJSONParsing_SpanAttributes(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create trace with various attribute types
 	traceWithAttributes := createTraceWithAttributes()
 	reader := strings.NewReader(traceWithAttributes)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	require.NoError(t, err)
 	assert.Len(t, traceData.Spans, 1)
-	
+
 	span := traceData.GetAllSpans()[0]
-	
+
 	// Verify different attribute types
 	assert.Equal(t, "test-service", span.Attributes["service.name"])
 	assert.Equal(t, "1.0.0", span.Attributes["service.version"])
@@ -72,25 +86,25 @@ func TestOTLPJSONParsing_SpanAttributes(t *testing.T) {
 
 func TestOTLPJSONParsing_SpanEvents(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create trace with span events
 	traceWithEvents := createTraceWithEvents()
 	reader := strings.NewReader(traceWithEvents)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	require.NoError(t, err)
 	assert.Len(t, traceData.Spans, 1)
-	
+
 	span := traceData.GetAllSpans()[0]
 	assert.Len(t, span.Events, 3)
-	
+
 	// Verify events
 	events := span.Events
 	assert.Equal(t, "request.start", events[0].Name)
 	assert.Equal(t, "validation.complete", events[1].Name)
 	assert.Equal(t, "response.sent", events[2].Name)
-	
+
 	// Verify event attributes
 	assert.Equal(t, "info", events[0].Attributes["level"])
 	assert.Equal(t, "user input validated", events[1].Attributes["message"])
@@ -99,12 +113,12 @@ func TestOTLPJSONParsing_SpanEvents(t *testing.T) {
 
 func TestOTLPJSONParsing_SpanStatus(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	testCases := []struct {
-		name           string
-		statusCode     int
-		statusMessage  string
-		expectedCode   string
+		name            string
+		statusCode      int
+		statusMessage   string
+		expectedCode    string
 		expectedMessage string
 	}{
 		{"Unset Status", 0, "", "UNSET", ""},
@@ -112,17 +126,17 @@ func TestOTLPJSONParsing_SpanStatus(t *testing.T) {
 		{"Error Status", 2, "Internal Server Error", "ERROR", "Internal Server Error"},
 		{"Unknown Status", 99, "Unknown", "UNKNOWN", "Unknown"},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			traceWithStatus := createTraceWithStatus(tc.statusCode, tc.statusMessage)
 			reader := strings.NewReader(traceWithStatus)
-			
+
 			traceData, err := ingestor.IngestFromReader(reader)
-			
+
 			require.NoError(t, err)
 			assert.Len(t, traceData.Spans, 1)
-			
+
 			span := traceData.GetAllSpans()[0]
 			assert.Equal(t, tc.expectedCode, span.Status.Code)
 			assert.Equal(t, tc.expectedMessage, span.Status.Message)
@@ -132,22 +146,22 @@ func TestOTLPJSONParsing_SpanStatus(t *testing.T) {
 
 func TestOTLPJSONParsing_TimestampHandling(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create trace with specific timestamps
 	traceWithTimestamps := createTraceWithTimestamps()
 	reader := strings.NewReader(traceWithTimestamps)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	require.NoError(t, err)
 	assert.Len(t, traceData.Spans, 1)
-	
+
 	span := traceData.GetAllSpans()[0]
-	
+
 	// Verify timestamps (nanoseconds since epoch)
 	expectedStart := int64(1640995200000000000) // 2022-01-01 00:00:00 UTC
 	expectedEnd := int64(1640995201500000000)   // 2022-01-01 00:00:01.5 UTC
-	
+
 	assert.Equal(t, expectedStart, span.StartTime)
 	assert.Equal(t, expectedEnd, span.EndTime)
 	assert.Equal(t, int64(1500000000), span.GetDuration()) // 1.5 seconds in nanoseconds
@@ -155,17 +169,17 @@ func TestOTLPJSONParsing_TimestampHandling(t *testing.T) {
 
 func TestOTLPJSONParsing_MultipleResourceSpans(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create trace with multiple resource spans (different services)
 	multiResourceTrace := createMultiResourceTrace()
 	reader := strings.NewReader(multiResourceTrace)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "multi-resource-trace", traceData.TraceID)
 	assert.Len(t, traceData.Spans, 4) // 2 spans from each resource
-	
+
 	// Verify spans from different services
 	serviceNames := make(map[string]int)
 	for _, span := range traceData.GetAllSpans() {
@@ -173,43 +187,43 @@ func TestOTLPJSONParsing_MultipleResourceSpans(t *testing.T) {
 			serviceNames[serviceName]++
 		}
 	}
-	
+
 	assert.Equal(t, 2, serviceNames["frontend-service"])
 	assert.Equal(t, 2, serviceNames["backend-service"])
 }
 
 func TestOTLPJSONParsing_EmptyOptionalFields(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create minimal trace with only required fields
 	minimalTrace := createMinimalTrace()
 	reader := strings.NewReader(minimalTrace)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	require.NoError(t, err)
 	assert.Len(t, traceData.Spans, 1)
-	
+
 	span := traceData.GetAllSpans()[0]
-	
+
 	// Verify minimal span
 	assert.Equal(t, "minimal-span", span.Name)
-	assert.Equal(t, "", span.ParentID) // No parent
-	assert.Empty(t, span.Attributes)   // No attributes
-	assert.Empty(t, span.Events)       // No events
+	assert.Equal(t, "", span.ParentID)         // No parent
+	assert.Empty(t, span.Attributes)           // No attributes
+	assert.Empty(t, span.Events)               // No events
 	assert.Equal(t, "UNSET", span.Status.Code) // Default status
 	assert.Equal(t, "", span.Status.Message)
 }
 
 func TestOTLPJSONParsing_InvalidTimestamps(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create trace with invalid timestamps
 	invalidTrace := createTraceWithInvalidTimestamps()
 	reader := strings.NewReader(invalidTrace)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, traceData)
 	assert.Contains(t, err.Error(), "invalid start time")
@@ -217,7 +231,7 @@ func TestOTLPJSONParsing_InvalidTimestamps(t *testing.T) {
 
 func TestOTLPJSONParsing_MalformedJSON(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	malformedJSON := `{
 		"resourceSpans": [
 			{
@@ -238,10 +252,10 @@ func TestOTLPJSONParsing_MalformedJSON(t *testing.T) {
 			}
 		]
 	}`
-	
+
 	reader := strings.NewReader(malformedJSON)
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, traceData)
 	assert.Contains(t, err.Error(), "failed to parse OTLP JSON")
@@ -249,21 +263,21 @@ func TestOTLPJSONParsing_MalformedJSON(t *testing.T) {
 
 func TestOTLPJSONParsing_LargeTrace(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create a large trace with many spans
 	largeTrace := createLargeTrace(100) // 100 spans
 	reader := strings.NewReader(largeTrace)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "large-trace", traceData.TraceID)
 	assert.Len(t, traceData.Spans, 100)
-	
+
 	// Verify tree structure is built correctly
 	assert.NotNil(t, traceData.SpanTree)
 	assert.NotNil(t, traceData.RootSpan)
-	
+
 	// Root should have many children
 	assert.Greater(t, len(traceData.SpanTree.Children), 0)
 }
@@ -380,7 +394,7 @@ func createComplexOTLPTrace() string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }
@@ -414,7 +428,7 @@ func createTraceWithAttributes() string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }
@@ -463,7 +477,7 @@ func createTraceWithEvents() string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }
@@ -482,7 +496,7 @@ func createTraceWithStatus(statusCode int, statusMessage string) string {
 								StartTimeUnixNano: "1640995200000000000",
 								EndTimeUnixNano:   "1640995201000000000",
 								Status: Status{
-									Code:    statusCode,
+									Code:    StatusCode(statusCode),
 									Message: statusMessage,
 								},
 							},
@@ -492,7 +506,7 @@ func createTraceWithStatus(statusCode int, statusMessage string) string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }
@@ -510,7 +524,7 @@ func createTraceWithTimestamps() string {
 								Name:              "test-span",
 								StartTimeUnixNano: "1640995200000000000", // 2022-01-01 00:00:00 UTC
 								EndTimeUnixNano:   "1640995201500000000", // 2022-01-01 00:00:01.5 UTC
-								Status: Status{Code: 1, Message: "OK"},
+								Status:            Status{Code: 1, Message: "OK"},
 							},
 						},
 					},
@@ -518,7 +532,7 @@ func createTraceWithTimestamps() string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }
@@ -601,7 +615,7 @@ func createMultiResourceTrace() string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }
@@ -619,7 +633,7 @@ func createMinimalTrace() string {
 								Name:              "minimal-span",
 								StartTimeUnixNano: "1640995200000000000",
 								EndTimeUnixNano:   "1640995201000000000",
-								Status: Status{Code: 0, Message: ""}, // UNSET status
+								Status:            Status{Code: 0, Message: ""}, // UNSET status
 							},
 						},
 					},
@@ -627,7 +641,7 @@ func createMinimalTrace() string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }
@@ -645,7 +659,7 @@ func createTraceWithInvalidTimestamps() string {
 								Name:              "invalid-span",
 								StartTimeUnixNano: "not-a-number",
 								EndTimeUnixNano:   "1640995201000000000",
-								Status: Status{Code: 1, Message: "OK"},
+								Status:            Status{Code: 1, Message: "OK"},
 							},
 						},
 					},
@@ -653,14 +667,14 @@ func createTraceWithInvalidTimestamps() string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }
 
 func createLargeTrace(numSpans int) string {
 	spans := make([]OTLPSpan, numSpans)
-	
+
 	// Create root span
 	spans[0] = OTLPSpan{
 		TraceID:           "large-trace",
@@ -668,9 +682,9 @@ func createLargeTrace(numSpans int) string {
 		Name:              "root-operation",
 		StartTimeUnixNano: "1640995200000000000",
 		EndTimeUnixNano:   "1640995210000000000", // 10 seconds
-		Status: Status{Code: 1, Message: "OK"},
+		Status:            Status{Code: 1, Message: "OK"},
 	}
-	
+
 	// Create child spans
 	for i := 1; i < numSpans; i++ {
 		spans[i] = OTLPSpan{
@@ -678,12 +692,12 @@ func createLargeTrace(numSpans int) string {
 			SpanID:            fmt.Sprintf("span-%d", i),
 			ParentSpanID:      "root-span",
 			Name:              fmt.Sprintf("operation-%d", i),
-			StartTimeUnixNano: fmt.Sprintf("%d", 1640995200000000000+int64(i)*100000000), // 100ms apart
+			StartTimeUnixNano: fmt.Sprintf("%d", 1640995200000000000+int64(i)*100000000),          // 100ms apart
 			EndTimeUnixNano:   fmt.Sprintf("%d", 1640995200000000000+int64(i)*100000000+50000000), // 50ms duration
-			Status: Status{Code: 1, Message: "OK"},
+			Status:            Status{Code: 1, Message: "OK"},
 		}
 	}
-	
+
 	trace := OTLPTrace{
 		ResourceSpans: []ResourceSpan{
 			{
@@ -695,7 +709,7 @@ func createLargeTrace(numSpans int) string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(trace)
 	return string(data)
 }

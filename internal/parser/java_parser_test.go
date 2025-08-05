@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package parser
 
 import (
@@ -11,7 +25,7 @@ import (
 
 func TestNewJavaFileParser(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	assert.NotNil(t, parser)
 	assert.NotNil(t, parser.BaseFileParser)
 	assert.Equal(t, LanguageJava, parser.GetLanguage())
@@ -19,7 +33,7 @@ func TestNewJavaFileParser(t *testing.T) {
 
 func TestJavaFileParser_CanParse(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	testCases := []struct {
 		filename string
 		expected bool
@@ -32,7 +46,7 @@ func TestJavaFileParser_CanParse(t *testing.T) {
 		{"test.txt", false},
 		{"test", false},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.filename, func(t *testing.T) {
 			result := parser.CanParse(tc.filename)
@@ -43,11 +57,11 @@ func TestJavaFileParser_CanParse(t *testing.T) {
 
 func TestJavaFileParser_ParseFile_BasicAnnotation(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	// Create temporary Java file with basic ServiceSpec annotation
 	tmpDir := t.TempDir()
 	javaFile := filepath.Join(tmpDir, "UserService.java")
-	
+
 	content := `package com.example.service;
 
 import com.example.model.User;
@@ -67,26 +81,26 @@ public User createUser(CreateUserRequest request) {
     // Implementation
     return userRepository.save(new User(request));
 }`
-	
+
 	err := os.WriteFile(javaFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(javaFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "createUser", spec.OperationID)
 	assert.Equal(t, "Create a new user account", spec.Description)
 	assert.Equal(t, javaFile, spec.SourceFile)
 	assert.Equal(t, 6, spec.LineNumber) // Line where @ServiceSpec appears
-	
+
 	// Verify preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "request.body.email")
 	assert.Contains(t, spec.Preconditions, "request.body.password")
-	
+
 	// Verify postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "response.status")
@@ -95,11 +109,11 @@ public User createUser(CreateUserRequest request) {
 
 func TestJavaFileParser_ParseFile_JSONFormat(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	// Create temporary Java file with JSON format ServiceSpec annotation
 	tmpDir := t.TempDir()
 	javaFile := filepath.Join(tmpDir, "OrderService.java")
-	
+
 	content := `package com.example.service;
 
 /**
@@ -121,25 +135,25 @@ func TestJavaFileParser_ParseFile_JSONFormat(t *testing.T) {
 public ResponseEntity<Order> processOrder(@RequestBody OrderRequest request) {
     return ResponseEntity.ok(orderService.process(request));
 }`
-	
+
 	err := os.WriteFile(javaFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(javaFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "processOrder", spec.OperationID)
 	assert.Equal(t, "Process customer order", spec.Description)
 	assert.Equal(t, javaFile, spec.SourceFile)
-	
+
 	// Verify preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "request.body.customerId")
 	assert.Contains(t, spec.Preconditions, "request.body.items")
-	
+
 	// Verify postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "response.status")
@@ -148,11 +162,11 @@ public ResponseEntity<Order> processOrder(@RequestBody OrderRequest request) {
 
 func TestJavaFileParser_ParseFile_MultipleAnnotations(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	// Create temporary Java file with multiple ServiceSpec annotations
 	tmpDir := t.TempDir()
 	javaFile := filepath.Join(tmpDir, "UserController.java")
-	
+
 	content := `package com.example.controller;
 
 @RestController
@@ -203,23 +217,23 @@ public class UserController {
         return ResponseEntity.ok(userService.update(userId, request));
     }
 }`
-	
+
 	err := os.WriteFile(javaFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(javaFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 3)
-	
+
 	// Verify first spec
 	assert.Equal(t, "createUser", specs[0].OperationID)
 	assert.Equal(t, "Create a new user", specs[0].Description)
-	
+
 	// Verify second spec
 	assert.Equal(t, "getUser", specs[1].OperationID)
 	assert.Equal(t, "Retrieve user by ID", specs[1].Description)
-	
+
 	// Verify third spec
 	assert.Equal(t, "updateUser", specs[2].OperationID)
 	assert.Equal(t, "Update existing user", specs[2].Description)
@@ -227,11 +241,11 @@ public class UserController {
 
 func TestJavaFileParser_ParseFile_ComplexJSONLogicExpressions(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	// Create temporary Java file with complex JSONLogic expressions
 	tmpDir := t.TempDir()
 	javaFile := filepath.Join(tmpDir, "PaymentService.java")
-	
+
 	content := `package com.example.service;
 
 /**
@@ -267,37 +281,37 @@ public ResponseEntity<PaymentResponse> processPayment(@RequestBody PaymentReques
     PaymentResponse response = paymentProcessor.process(request);
     return ResponseEntity.ok(response);
 }`
-	
+
 	err := os.WriteFile(javaFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(javaFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "processPayment", spec.OperationID)
 	assert.Equal(t, "Process payment with complex validation", spec.Description)
-	
+
 	// Verify complex preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "amount_validation")
 	assert.Contains(t, spec.Preconditions, "payment_method_validation")
-	
+
 	// Verify the structure of complex expressions
 	amountValidation, ok := spec.Preconditions["amount_validation"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, amountValidation, "and")
-	
+
 	paymentMethodValidation, ok := spec.Preconditions["payment_method_validation"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, paymentMethodValidation, "or")
-	
+
 	// Verify complex postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "success_response")
-	
+
 	successResponse, ok := spec.Postconditions["success_response"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, successResponse, "and")
@@ -305,11 +319,11 @@ public ResponseEntity<PaymentResponse> processPayment(@RequestBody PaymentReques
 
 func TestJavaFileParser_ParseFile_MinimalAnnotation(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	// Create temporary Java file with minimal ServiceSpec annotation (no conditions)
 	tmpDir := t.TempDir()
 	javaFile := filepath.Join(tmpDir, "HealthService.java")
-	
+
 	content := `package com.example.service;
 
 /**
@@ -321,19 +335,19 @@ func TestJavaFileParser_ParseFile_MinimalAnnotation(t *testing.T) {
 public ResponseEntity<String> healthCheck() {
     return ResponseEntity.ok("OK");
 }`
-	
+
 	err := os.WriteFile(javaFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(javaFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "healthCheck", spec.OperationID)
 	assert.Equal(t, "Health check endpoint", spec.Description)
-	
+
 	// Should have empty but non-nil conditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Empty(t, spec.Preconditions)
@@ -343,7 +357,7 @@ public ResponseEntity<String> healthCheck() {
 
 func TestJavaFileParser_ParseFile_ErrorHandling(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	testCases := []struct {
 		name        string
 		content     string
@@ -395,17 +409,17 @@ public void test() {}`,
 			errorMsg:    "preconditions must be a map/object",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			javaFile := filepath.Join(tmpDir, "Test.java")
-			
+
 			err := os.WriteFile(javaFile, []byte(tc.content), 0644)
 			require.NoError(t, err)
-			
+
 			specs, errors := parser.ParseFile(javaFile)
-			
+
 			if tc.expectError {
 				assert.Empty(t, specs)
 				assert.NotEmpty(t, errors)
@@ -420,7 +434,7 @@ public void test() {}`,
 
 func TestJavaFileParser_ParseFile_EdgeCases(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	testCases := []struct {
 		name     string
 		content  string
@@ -469,17 +483,17 @@ public void test2() {}`,
 			expected: 2,
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			javaFile := filepath.Join(tmpDir, "Test.java")
-			
+
 			err := os.WriteFile(javaFile, []byte(tc.content), 0644)
 			require.NoError(t, err)
-			
+
 			specs, errors := parser.ParseFile(javaFile)
-			
+
 			assert.Len(t, specs, tc.expected)
 			assert.Empty(t, errors) // No errors expected for these cases
 		})
@@ -488,9 +502,9 @@ public void test2() {}`,
 
 func TestJavaFileParser_ParseFile_FileNotFound(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	specs, errors := parser.ParseFile("/non/existent/file.java")
-	
+
 	assert.Empty(t, specs)
 	assert.Len(t, errors, 1)
 	assert.Contains(t, errors[0].Message, "failed to open file")
@@ -498,11 +512,11 @@ func TestJavaFileParser_ParseFile_FileNotFound(t *testing.T) {
 
 func TestJavaFileParser_ParseFile_RealWorldExample(t *testing.T) {
 	parser := NewJavaFileParser()
-	
+
 	// Create a realistic Java service file
 	tmpDir := t.TempDir()
 	javaFile := filepath.Join(tmpDir, "UserManagementService.java")
-	
+
 	content := `package com.example.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -616,34 +630,34 @@ public class UserManagementService {
         return ResponseEntity.ok(response);
     }
 }`
-	
+
 	err := os.WriteFile(javaFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(javaFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 2)
-	
+
 	// Verify first spec (createUserAccount)
 	createUserSpec := specs[0]
 	assert.Equal(t, "createUserAccount", createUserSpec.OperationID)
 	assert.Equal(t, "Create a new user account with comprehensive validation", createUserSpec.Description)
-	
+
 	// Verify complex preconditions
 	assert.Contains(t, createUserSpec.Preconditions, "email_validation")
 	assert.Contains(t, createUserSpec.Preconditions, "password_strength")
 	assert.Contains(t, createUserSpec.Preconditions, "unique_email")
-	
+
 	// Verify complex postconditions
 	assert.Contains(t, createUserSpec.Postconditions, "successful_creation")
 	assert.Contains(t, createUserSpec.Postconditions, "password_security")
-	
+
 	// Verify second spec (getUserProfile)
 	getUserSpec := specs[1]
 	assert.Equal(t, "getUserProfile", getUserSpec.OperationID)
 	assert.Equal(t, "Retrieve user profile by ID", getUserSpec.Description)
-	
+
 	assert.Contains(t, getUserSpec.Preconditions, "valid_user_id")
 	assert.Contains(t, getUserSpec.Preconditions, "user_exists")
 	assert.Contains(t, getUserSpec.Postconditions, "successful_retrieval")
@@ -654,10 +668,10 @@ func TestJavaFileParser_Integration_WithSpecParser(t *testing.T) {
 	specParser := NewSpecParser()
 	javaParser := NewJavaFileParser()
 	specParser.RegisterFileParser(LanguageJava, javaParser)
-	
+
 	// Create test directory with Java files
 	tmpDir := t.TempDir()
-	
+
 	// Create first Java file
 	javaFile1 := filepath.Join(tmpDir, "Service1.java")
 	content1 := `/**
@@ -668,7 +682,7 @@ func TestJavaFileParser_Integration_WithSpecParser(t *testing.T) {
 public void service1Operation() {}`
 	err := os.WriteFile(javaFile1, []byte(content1), 0644)
 	require.NoError(t, err)
-	
+
 	// Create second Java file
 	javaFile2 := filepath.Join(tmpDir, "Service2.java")
 	content2 := `/**
@@ -679,15 +693,15 @@ public void service1Operation() {}`
 public void service2Operation() {}`
 	err = os.WriteFile(javaFile2, []byte(content2), 0644)
 	require.NoError(t, err)
-	
+
 	// Parse the directory
 	result, err := specParser.ParseFromSource(tmpDir)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.Specs, 2)
 	assert.Empty(t, result.Errors)
-	
+
 	// Verify both specs were parsed
 	operationIds := []string{result.Specs[0].OperationID, result.Specs[1].OperationID}
 	assert.Contains(t, operationIds, "service1Operation")

@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package ingestor
 
 import (
@@ -8,14 +22,14 @@ import (
 	"testing"
 	"time"
 
-	"flowspec-cli/internal/models"
+	"github.com/flowspec/flowspec-cli/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewTraceIngestor(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	assert.NotNil(t, ingestor)
 	assert.Equal(t, int64(500*1024*1024), ingestor.memoryLimit) // 500MB default
 	assert.Equal(t, int64(0), ingestor.GetMemoryUsage())
@@ -23,20 +37,20 @@ func TestNewTraceIngestor(t *testing.T) {
 
 func TestNewTraceIngestorWithConfig(t *testing.T) {
 	config := &IngestorConfig{
-		MemoryLimitMB: 1000,
+		MemoryLimitMB:   1000,
 		EnableStreaming: true,
-		ChunkSize: 2048,
+		ChunkSize:       2048,
 	}
-	
+
 	ingestor := NewTraceIngestorWithConfig(config)
-	
+
 	assert.NotNil(t, ingestor)
 	assert.Equal(t, int64(1000*1024*1024), ingestor.memoryLimit) // 1000MB
 }
 
 func TestDefaultIngestorConfig(t *testing.T) {
 	config := DefaultIngestorConfig()
-	
+
 	assert.NotNil(t, config)
 	assert.Equal(t, int64(500), config.MemoryLimitMB)
 	assert.True(t, config.EnableStreaming)
@@ -47,7 +61,7 @@ func TestDefaultIngestorConfig(t *testing.T) {
 
 func TestNewTraceStore(t *testing.T) {
 	store := NewTraceStore()
-	
+
 	assert.NotNil(t, store)
 	assert.NotNil(t, store.spanIndex)
 	assert.NotNil(t, store.nameIndex)
@@ -59,26 +73,26 @@ func TestNewTraceStore(t *testing.T) {
 
 func TestIngestFromReader_ValidOTLP(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create valid OTLP JSON data
 	otlpData := createTestOTLPData()
 	reader := strings.NewReader(otlpData)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	require.NoError(t, err)
 	assert.NotNil(t, traceData)
 	assert.Equal(t, "trace123", traceData.TraceID)
 	assert.Len(t, traceData.Spans, 3) // root + 2 children
 	assert.NotNil(t, traceData.RootSpan)
 	assert.NotNil(t, traceData.SpanTree)
-	
+
 	// Verify spans
 	rootSpan := traceData.FindSpanByID("span1")
 	assert.NotNil(t, rootSpan)
 	assert.Equal(t, "root-operation", rootSpan.Name)
 	assert.Equal(t, "", rootSpan.ParentID) // Root span has no parent
-	
+
 	childSpan := traceData.FindSpanByID("span2")
 	assert.NotNil(t, childSpan)
 	assert.Equal(t, "child-operation", childSpan.Name)
@@ -87,12 +101,12 @@ func TestIngestFromReader_ValidOTLP(t *testing.T) {
 
 func TestIngestFromReader_InvalidJSON(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	invalidJSON := `{"invalid": json}`
 	reader := strings.NewReader(invalidJSON)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, traceData)
 	assert.Contains(t, err.Error(), "failed to parse OTLP JSON")
@@ -100,30 +114,35 @@ func TestIngestFromReader_InvalidJSON(t *testing.T) {
 
 func TestIngestFromReader_EmptyTrace(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
+	// An OTLP trace with an empty resourceSpans array is valid.
 	emptyTrace := `{"resourceSpans": []}`
 	reader := strings.NewReader(emptyTrace)
-	
+
 	traceData, err := ingestor.IngestFromReader(reader)
-	
-	assert.Error(t, err)
-	assert.Nil(t, traceData)
-	assert.Contains(t, err.Error(), "no resource spans found")
+
+	// It should not produce an error.
+	require.NoError(t, err)
+	// It should return a valid, non-nil TraceData object.
+	require.NotNil(t, traceData)
+	// The TraceData object should contain no spans.
+	assert.Len(t, traceData.Spans, 0)
+	assert.Nil(t, traceData.RootSpan)
 }
 
 func TestIngestFromFile_ValidFile(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create temporary file with valid OTLP data
 	tmpDir := t.TempDir()
 	traceFile := filepath.Join(tmpDir, "trace.json")
-	
+
 	otlpData := createTestOTLPData()
 	err := os.WriteFile(traceFile, []byte(otlpData), 0644)
 	require.NoError(t, err)
-	
+
 	traceData, err := ingestor.IngestFromFile(traceFile)
-	
+
 	require.NoError(t, err)
 	assert.NotNil(t, traceData)
 	assert.Equal(t, "trace123", traceData.TraceID)
@@ -132,9 +151,9 @@ func TestIngestFromFile_ValidFile(t *testing.T) {
 
 func TestIngestFromFile_NonExistentFile(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	traceData, err := ingestor.IngestFromFile("/non/existent/file.json")
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, traceData)
 	assert.Contains(t, err.Error(), "failed to access file")
@@ -142,22 +161,22 @@ func TestIngestFromFile_NonExistentFile(t *testing.T) {
 
 func TestIngestFromFile_LargeFile(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Create temporary large file
 	tmpDir := t.TempDir()
 	largeFile := filepath.Join(tmpDir, "large_trace.json")
-	
+
 	// Create file larger than 100MB limit
 	largeData := make([]byte, 101*1024*1024) // 101MB
 	for i := range largeData {
 		largeData[i] = 'a'
 	}
-	
+
 	err := os.WriteFile(largeFile, largeData, 0644)
 	require.NoError(t, err)
-	
+
 	traceData, err := ingestor.IngestFromFile(largeFile)
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, traceData)
 	assert.Contains(t, err.Error(), "exceeds maximum limit")
@@ -165,10 +184,10 @@ func TestIngestFromFile_LargeFile(t *testing.T) {
 
 func TestSetMemoryLimit(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	// Initial limit should be 500MB
 	assert.Equal(t, int64(500*1024*1024), ingestor.memoryLimit)
-	
+
 	// Set new limit
 	ingestor.SetMemoryLimit(1000) // 1000MB
 	assert.Equal(t, int64(1000*1024*1024), ingestor.memoryLimit)
@@ -176,7 +195,7 @@ func TestSetMemoryLimit(t *testing.T) {
 
 func TestTraceStore_SetTraceData(t *testing.T) {
 	store := NewTraceStore()
-	
+
 	// Create test trace data
 	traceData := &models.TraceData{
 		TraceID: "test-trace",
@@ -190,39 +209,39 @@ func TestTraceStore_SetTraceData(t *testing.T) {
 				},
 			},
 			"span2": {
-				SpanID:  "span2",
-				TraceID: "test-trace",
-				Name:    "another-operation",
+				SpanID:   "span2",
+				TraceID:  "test-trace",
+				Name:     "another-operation",
 				ParentID: "span1",
 			},
 		},
 	}
-	
+
 	store.SetTraceData(traceData)
-	
+
 	assert.Equal(t, traceData, store.GetTraceData())
 	assert.Equal(t, 2, store.GetSpanCount())
-	
+
 	// Test indexes
 	span1 := store.FindSpanByID("span1")
 	assert.NotNil(t, span1)
 	assert.Equal(t, "test-operation", span1.Name)
-	
+
 	spansByName := store.FindSpansByName("test-operation")
 	assert.Len(t, spansByName, 1)
 	assert.Equal(t, "span1", spansByName[0].SpanID)
-	
+
 	spansByOpID := store.FindSpansByOperationID("testOp")
 	assert.Len(t, spansByOpID, 1)
 	assert.Equal(t, "span1", spansByOpID[0].SpanID)
-	
+
 	allSpans := store.GetAllSpans()
 	assert.Len(t, allSpans, 2)
 }
 
 func TestTraceStore_EmptyQueries(t *testing.T) {
 	store := NewTraceStore()
-	
+
 	// Test queries on empty store
 	assert.Nil(t, store.FindSpanByID("nonexistent"))
 	assert.Empty(t, store.FindSpansByName("nonexistent"))
@@ -233,7 +252,7 @@ func TestTraceStore_EmptyQueries(t *testing.T) {
 
 func TestConvertOTLPSpan(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	otlpSpan := OTLPSpan{
 		TraceID:           "trace123",
 		SpanID:            "span456",
@@ -259,9 +278,9 @@ func TestConvertOTLPSpan(t *testing.T) {
 			},
 		},
 	}
-	
+
 	span, err := ingestor.convertOTLPSpan(otlpSpan)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "trace123", span.TraceID)
 	assert.Equal(t, "span456", span.SpanID)
@@ -271,11 +290,11 @@ func TestConvertOTLPSpan(t *testing.T) {
 	assert.Equal(t, int64(1640995201000000000), span.EndTime)
 	assert.Equal(t, "OK", span.Status.Code)
 	assert.Equal(t, "Success", span.Status.Message)
-	
+
 	// Check attributes
 	assert.Equal(t, "test-service", span.Attributes["service.name"])
 	assert.Equal(t, "testOp", span.Attributes["operation.id"])
-	
+
 	// Check events
 	assert.Len(t, span.Events, 1)
 	assert.Equal(t, "test-event", span.Events[0].Name)
@@ -285,7 +304,7 @@ func TestConvertOTLPSpan(t *testing.T) {
 
 func TestConvertOTLPSpan_InvalidTimestamp(t *testing.T) {
 	ingestor := NewTraceIngestor()
-	
+
 	otlpSpan := OTLPSpan{
 		TraceID:           "trace123",
 		SpanID:            "span456",
@@ -293,9 +312,9 @@ func TestConvertOTLPSpan_InvalidTimestamp(t *testing.T) {
 		StartTimeUnixNano: "invalid-timestamp",
 		EndTimeUnixNano:   "1640995201000000000",
 	}
-	
+
 	span, err := ingestor.convertOTLPSpan(otlpSpan)
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, span)
 	assert.Contains(t, err.Error(), "invalid start time")
@@ -313,11 +332,11 @@ func TestParseNanoTimestamp(t *testing.T) {
 		{"invalid", 0, true},
 		{"1.5", 0, true},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
 			result, err := parseNanoTimestamp(tc.input)
-			
+
 			if tc.hasError {
 				assert.Error(t, err)
 			} else {
@@ -338,10 +357,10 @@ func TestConvertStatusCode(t *testing.T) {
 		{2, "ERROR"},
 		{99, "UNKNOWN"},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(string(rune(tc.code)), func(t *testing.T) {
-			result := convertStatusCode(tc.code)
+			result := convertStatusCode(StatusCode(tc.code))
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -349,24 +368,24 @@ func TestConvertStatusCode(t *testing.T) {
 
 func TestIngestMetrics(t *testing.T) {
 	metrics := NewIngestMetrics()
-	
+
 	assert.NotNil(t, metrics)
 	assert.False(t, metrics.StartTime.IsZero())
 	assert.True(t, metrics.EndTime.IsZero())
-	
+
 	// Set some test data
 	metrics.TotalSpans = 100
 	metrics.ProcessedSpans = 95
 	metrics.MemoryUsed = 1024 * 1024 // 1MB
 	metrics.FileSize = 2048 * 1024   // 2MB
-	
+
 	// Simulate some processing time
 	time.Sleep(10 * time.Millisecond)
 	metrics.Finish()
-	
+
 	assert.False(t, metrics.EndTime.IsZero())
 	assert.Greater(t, metrics.ProcessingTime, time.Duration(0))
-	
+
 	// Test summary
 	summary := metrics.GetSummary()
 	assert.Equal(t, 100, summary["total_spans"])
@@ -374,7 +393,7 @@ func TestIngestMetrics(t *testing.T) {
 	assert.Equal(t, int64(1024*1024), summary["memory_used"])
 	assert.Equal(t, int64(2048*1024), summary["file_size"])
 	assert.NotEmpty(t, summary["processing_time"])
-	
+
 	// Test processing rate
 	rate := metrics.GetProcessingRate()
 	assert.Greater(t, rate, 0.0)
@@ -384,40 +403,40 @@ func TestCompleteIngestionWorkflow(t *testing.T) {
 	// Create ingestor and store
 	ingestor := NewTraceIngestor()
 	store := NewTraceStore()
-	
+
 	// Create test OTLP data
 	otlpData := createTestOTLPData()
 	reader := strings.NewReader(otlpData)
-	
+
 	// Ingest trace data
 	traceData, err := ingestor.IngestFromReader(reader)
 	require.NoError(t, err)
-	
+
 	// Set data in store
 	store.SetTraceData(traceData)
-	
+
 	// Verify complete workflow
 	assert.Equal(t, "trace123", traceData.TraceID)
 	assert.Len(t, traceData.Spans, 3)
 	assert.NotNil(t, traceData.RootSpan)
 	assert.NotNil(t, traceData.SpanTree)
-	
+
 	// Test tree structure
 	assert.Equal(t, "span1", traceData.RootSpan.SpanID)
 	assert.Len(t, traceData.SpanTree.Children, 2) // Root has 2 children
-	
+
 	// Test store queries
 	rootSpan := store.GetRootSpan()
 	assert.NotNil(t, rootSpan)
 	assert.Equal(t, "root-operation", rootSpan.Name)
-	
+
 	allSpans := store.GetAllSpans()
 	assert.Len(t, allSpans, 3)
-	
+
 	// Test specific queries
 	childSpans := store.FindSpansByName("child-operation")
 	assert.Len(t, childSpans, 1)
-	
+
 	operationSpans := store.FindSpansByOperationID("rootOp")
 	assert.Len(t, operationSpans, 1)
 	assert.Equal(t, "span1", operationSpans[0].SpanID)
@@ -482,7 +501,7 @@ func createTestOTLPData() string {
 			},
 		},
 	}
-	
+
 	data, _ := json.Marshal(otlpTrace)
 	return string(data)
 }

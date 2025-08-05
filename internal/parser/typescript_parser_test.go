@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package parser
 
 import (
@@ -11,7 +25,7 @@ import (
 
 func TestNewTypeScriptFileParser(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	assert.NotNil(t, parser)
 	assert.NotNil(t, parser.BaseFileParser)
 	assert.Equal(t, LanguageTypeScript, parser.GetLanguage())
@@ -19,7 +33,7 @@ func TestNewTypeScriptFileParser(t *testing.T) {
 
 func TestTypeScriptFileParser_CanParse(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	testCases := []struct {
 		filename string
 		expected bool
@@ -35,7 +49,7 @@ func TestTypeScriptFileParser_CanParse(t *testing.T) {
 		{"test.txt", false},
 		{"test", false},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.filename, func(t *testing.T) {
 			result := parser.CanParse(tc.filename)
@@ -46,11 +60,11 @@ func TestTypeScriptFileParser_CanParse(t *testing.T) {
 
 func TestTypeScriptFileParser_ParseFile_BasicAnnotation(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	// Create temporary TypeScript file with basic ServiceSpec annotation
 	tmpDir := t.TempDir()
 	tsFile := filepath.Join(tmpDir, "UserService.ts")
-	
+
 	content := `import { Injectable } from '@nestjs/common';
 import { User } from './types/User';
 
@@ -83,26 +97,26 @@ export class UserService {
         return this.userRepository.save(new User(request));
     }
 }`
-	
+
 	err := os.WriteFile(tsFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(tsFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "createUser", spec.OperationID)
 	assert.Equal(t, "Create a new user account", spec.Description)
 	assert.Equal(t, tsFile, spec.SourceFile)
 	assert.Equal(t, 8, spec.LineNumber) // Line where @ServiceSpec appears
-	
+
 	// Verify preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "email_validation")
 	assert.Contains(t, spec.Preconditions, "password_strength")
-	
+
 	// Verify postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "successful_creation")
@@ -110,11 +124,11 @@ export class UserService {
 
 func TestTypeScriptFileParser_ParseFile_JSONFormat(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	// Create temporary TypeScript file with JSON format ServiceSpec annotation
 	tmpDir := t.TempDir()
 	tsFile := filepath.Join(tmpDir, "OrderService.ts")
-	
+
 	content := `import { Controller, Post, Body } from '@nestjs/common';
 
 @Controller('orders')
@@ -140,25 +154,25 @@ export class OrderController {
         return this.orderService.process(request);
     }
 }`
-	
+
 	err := os.WriteFile(tsFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(tsFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "processOrder", spec.OperationID)
 	assert.Equal(t, "Process customer order", spec.Description)
 	assert.Equal(t, tsFile, spec.SourceFile)
-	
+
 	// Verify preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "request.body.customerId")
 	assert.Contains(t, spec.Preconditions, "request.body.items")
-	
+
 	// Verify postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "response.status")
@@ -167,11 +181,11 @@ export class OrderController {
 
 func TestTypeScriptFileParser_ParseFile_SingleLineComments(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	// Create temporary TypeScript file with single-line comment ServiceSpec annotation
 	tmpDir := t.TempDir()
 	tsFile := filepath.Join(tmpDir, "HealthService.ts")
-	
+
 	content := `export class HealthService {
 
     // @ServiceSpec
@@ -185,25 +199,25 @@ func TestTypeScriptFileParser_ParseFile_SingleLineComments(t *testing.T) {
         return { status: 'OK' };
     }
 }`
-	
+
 	err := os.WriteFile(tsFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(tsFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "healthCheck", spec.OperationID)
 	assert.Equal(t, "Health check endpoint", spec.Description)
 	assert.Equal(t, tsFile, spec.SourceFile)
 	assert.Equal(t, 3, spec.LineNumber) // Line where @ServiceSpec appears
-	
+
 	// Verify preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "always_true")
-	
+
 	// Verify postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "success_response")
@@ -211,11 +225,11 @@ func TestTypeScriptFileParser_ParseFile_SingleLineComments(t *testing.T) {
 
 func TestTypeScriptFileParser_ParseFile_MultipleAnnotations(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	// Create temporary TypeScript file with multiple ServiceSpec annotations
 	tmpDir := t.TempDir()
 	tsFile := filepath.Join(tmpDir, "UserController.ts")
-	
+
 	content := `import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
 
 @Controller('users')
@@ -268,23 +282,23 @@ export class UserController {
         return this.userService.update(userId, request);
     }
 }`
-	
+
 	err := os.WriteFile(tsFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(tsFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 3)
-	
+
 	// Verify first spec
 	assert.Equal(t, "createUser", specs[0].OperationID)
 	assert.Equal(t, "Create a new user", specs[0].Description)
-	
+
 	// Verify second spec
 	assert.Equal(t, "getUser", specs[1].OperationID)
 	assert.Equal(t, "Retrieve user by ID", specs[1].Description)
-	
+
 	// Verify third spec
 	assert.Equal(t, "updateUser", specs[2].OperationID)
 	assert.Equal(t, "Update existing user", specs[2].Description)
@@ -292,11 +306,11 @@ export class UserController {
 
 func TestTypeScriptFileParser_ParseFile_ComplexJSONLogicExpressions(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	// Create temporary TypeScript file with complex JSONLogic expressions
 	tmpDir := t.TempDir()
 	tsFile := filepath.Join(tmpDir, "PaymentService.ts")
-	
+
 	content := `import { Injectable } from '@nestjs/common';
 
 @Injectable()
@@ -335,37 +349,37 @@ export class PaymentService {
         return response;
     }
 }`
-	
+
 	err := os.WriteFile(tsFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(tsFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "processPayment", spec.OperationID)
 	assert.Equal(t, "Process payment with complex validation", spec.Description)
-	
+
 	// Verify complex preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "amount_validation")
 	assert.Contains(t, spec.Preconditions, "payment_method_validation")
-	
+
 	// Verify the structure of complex expressions
 	amountValidation, ok := spec.Preconditions["amount_validation"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, amountValidation, "and")
-	
+
 	paymentMethodValidation, ok := spec.Preconditions["payment_method_validation"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, paymentMethodValidation, "or")
-	
+
 	// Verify complex postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "success_response")
-	
+
 	successResponse, ok := spec.Postconditions["success_response"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, successResponse, "and")
@@ -373,11 +387,11 @@ export class PaymentService {
 
 func TestTypeScriptFileParser_ParseFile_TSXFile(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	// Create temporary TSX file with ServiceSpec annotation
 	tmpDir := t.TempDir()
 	tsxFile := filepath.Join(tmpDir, "UserComponent.tsx")
-	
+
 	content := `import React from 'react';
 
 interface UserComponentProps {
@@ -412,25 +426,26 @@ export const UserComponent: React.FC<UserComponentProps> = ({ userId }) => {
             <h1>User Profile</h1>
         </div>
     );
-};`
-	
+};
+`
+
 	err := os.WriteFile(tsxFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(tsxFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "fetchUserData", spec.OperationID)
 	assert.Equal(t, "Fetch user data for display", spec.Description)
 	assert.Equal(t, tsxFile, spec.SourceFile)
-	
+
 	// Verify preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "valid_user_id")
-	
+
 	// Verify postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "data_loaded")
@@ -438,7 +453,7 @@ export const UserComponent: React.FC<UserComponentProps> = ({ userId }) => {
 
 func TestTypeScriptFileParser_ParseFile_ErrorHandling(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	testCases := []struct {
 		name        string
 		content     string
@@ -490,17 +505,17 @@ function test() {}`,
 			errorMsg:    "preconditions must be a map/object",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			tsFile := filepath.Join(tmpDir, "Test.ts")
-			
+
 			err := os.WriteFile(tsFile, []byte(tc.content), 0644)
 			require.NoError(t, err)
-			
+
 			specs, errors := parser.ParseFile(tsFile)
-			
+
 			if tc.expectError {
 				assert.Empty(t, specs)
 				assert.NotEmpty(t, errors)
@@ -515,7 +530,7 @@ function test() {}`,
 
 func TestTypeScriptFileParser_ParseFile_EdgeCases(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	testCases := []struct {
 		name     string
 		content  string
@@ -568,17 +583,17 @@ func TestTypeScriptFileParser_ParseFile_EdgeCases(t *testing.T) {
 			expected: 3,
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			tsFile := filepath.Join(tmpDir, "Test.ts")
-			
+
 			err := os.WriteFile(tsFile, []byte(tc.content), 0644)
 			require.NoError(t, err)
-			
+
 			specs, errors := parser.ParseFile(tsFile)
-			
+
 			assert.Len(t, specs, tc.expected)
 			assert.Empty(t, errors) // No errors expected for these cases
 		})
@@ -587,9 +602,9 @@ func TestTypeScriptFileParser_ParseFile_EdgeCases(t *testing.T) {
 
 func TestTypeScriptFileParser_ParseFile_FileNotFound(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	specs, errors := parser.ParseFile("/non/existent/file.ts")
-	
+
 	assert.Empty(t, specs)
 	assert.Len(t, errors, 1)
 	assert.Contains(t, errors[0].Message, "failed to open file")
@@ -597,11 +612,11 @@ func TestTypeScriptFileParser_ParseFile_FileNotFound(t *testing.T) {
 
 func TestTypeScriptFileParser_ParseFile_RealWorldExample(t *testing.T) {
 	parser := NewTypeScriptFileParser()
-	
+
 	// Create a realistic TypeScript service file
 	tmpDir := t.TempDir()
 	tsFile := filepath.Join(tmpDir, "UserManagementService.ts")
-	
+
 	content := `import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -633,7 +648,7 @@ export class UserManagementService {
      *     "and": [
      *       {"!=": [{"var": "request.body.password"}, null]},
      *       {">=": [{"strlen": [{"var": "request.body.password"}]}, 8]},
-     *       {"regex": [{"var": "request.body.password"}, ".*[A-Z].*"]},
+     *       {"regex": [{"var": "request.body.password"}, ".*\\\[A-Z\\].*"]},
      *       {"regex": [{"var": "request.body.password"}, ".*[0-9].*"]}
      *     ]
      *   }
@@ -721,34 +736,34 @@ export class UserManagementService {
         return 'hashed_' + password;
     }
 }`
-	
+
 	err := os.WriteFile(tsFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(tsFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 2)
-	
+
 	// Verify first spec (createUserAccount)
 	createUserSpec := specs[0]
 	assert.Equal(t, "createUserAccount", createUserSpec.OperationID)
 	assert.Equal(t, "Create a new user account with comprehensive validation", createUserSpec.Description)
-	
+
 	// Verify complex preconditions
 	assert.Contains(t, createUserSpec.Preconditions, "email_validation")
 	assert.Contains(t, createUserSpec.Preconditions, "password_strength")
 	assert.Contains(t, createUserSpec.Preconditions, "unique_email")
-	
+
 	// Verify complex postconditions
 	assert.Contains(t, createUserSpec.Postconditions, "successful_creation")
 	assert.Contains(t, createUserSpec.Postconditions, "password_security")
-	
+
 	// Verify second spec (getUserProfile)
 	getUserSpec := specs[1]
 	assert.Equal(t, "getUserProfile", getUserSpec.OperationID)
 	assert.Equal(t, "Retrieve user profile by ID", getUserSpec.Description)
-	
+
 	assert.Contains(t, getUserSpec.Preconditions, "valid_user_id")
 	assert.Contains(t, getUserSpec.Preconditions, "user_exists")
 	assert.Contains(t, getUserSpec.Postconditions, "successful_retrieval")
@@ -759,10 +774,10 @@ func TestTypeScriptFileParser_Integration_WithSpecParser(t *testing.T) {
 	specParser := NewSpecParser()
 	tsParser := NewTypeScriptFileParser()
 	specParser.RegisterFileParser(LanguageTypeScript, tsParser)
-	
+
 	// Create test directory with TypeScript files
 	tmpDir := t.TempDir()
-	
+
 	// Create first TypeScript file
 	tsFile1 := filepath.Join(tmpDir, "Service1.ts")
 	content1 := `/**
@@ -773,7 +788,7 @@ func TestTypeScriptFileParser_Integration_WithSpecParser(t *testing.T) {
 export function service1Operation() {}`
 	err := os.WriteFile(tsFile1, []byte(content1), 0644)
 	require.NoError(t, err)
-	
+
 	// Create second TypeScript file
 	tsFile2 := filepath.Join(tmpDir, "Service2.tsx")
 	content2 := `/**
@@ -784,15 +799,15 @@ export function service1Operation() {}`
 export const service2Operation = () => {}`
 	err = os.WriteFile(tsFile2, []byte(content2), 0644)
 	require.NoError(t, err)
-	
+
 	// Parse the directory
 	result, err := specParser.ParseFromSource(tmpDir)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.Specs, 2)
 	assert.Empty(t, result.Errors)
-	
+
 	// Verify both specs were parsed
 	operationIds := []string{result.Specs[0].OperationID, result.Specs[1].OperationID}
 	assert.Contains(t, operationIds, "service1Operation")

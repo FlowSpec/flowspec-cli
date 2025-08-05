@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package parser
 
 import (
@@ -10,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"flowspec-cli/internal/models"
+	"github.com/flowspec/flowspec-cli/internal/models"
 )
 
 // SpecParser defines the interface for parsing ServiceSpecs from source code
@@ -50,15 +64,15 @@ type DefaultSpecParser struct {
 
 // ParserConfig holds configuration for the parser
 type ParserConfig struct {
-	MaxWorkers     int
-	SkipHidden     bool
-	SkipVendor     bool
-	MaxFileSize    int64 // Maximum file size in bytes
-	AllowedDirs    []string
-	ExcludedDirs   []string
-	EnableCache    bool
-	CacheSize      int
-	EnableMetrics  bool
+	MaxWorkers    int
+	SkipHidden    bool
+	SkipVendor    bool
+	MaxFileSize   int64 // Maximum file size in bytes
+	AllowedDirs   []string
+	ExcludedDirs  []string
+	EnableCache   bool
+	CacheSize     int
+	EnableMetrics bool
 }
 
 // ParseCache provides caching for parsed files
@@ -80,15 +94,15 @@ type CacheEntry struct {
 
 // ParseMetrics tracks parsing performance
 type ParseMetrics struct {
-	TotalFiles      int
-	ProcessedFiles  int
-	CacheHits       int
-	CacheMisses     int
-	TotalSpecs      int
-	TotalErrors     int
-	ParseDuration   time.Duration
-	StartTime       time.Time
-	mu              sync.RWMutex
+	TotalFiles     int
+	ProcessedFiles int
+	CacheHits      int
+	CacheMisses    int
+	TotalSpecs     int
+	TotalErrors    int
+	ParseDuration  time.Duration
+	StartTime      time.Time
+	mu             sync.RWMutex
 }
 
 // DefaultParserConfig returns a default parser configuration
@@ -130,12 +144,12 @@ func NewSpecParser() *DefaultSpecParser {
 		maxWorkers:     config.MaxWorkers,
 		cache:          NewParseCache(config.CacheSize),
 	}
-	
+
 	// Register default file parsers
 	parser.RegisterFileParser(LanguageJava, NewJavaFileParser())
 	parser.RegisterFileParser(LanguageTypeScript, NewTypeScriptFileParser())
 	parser.RegisterFileParser(LanguageGo, NewGoFileParser())
-	
+
 	return parser
 }
 
@@ -146,16 +160,16 @@ func NewSpecParserWithConfig(config *ParserConfig) *DefaultSpecParser {
 		supportedTypes: getSupportedFileTypes(),
 		maxWorkers:     config.MaxWorkers,
 	}
-	
+
 	if config.EnableCache {
 		parser.cache = NewParseCache(config.CacheSize)
 	}
-	
+
 	// Register default file parsers
 	parser.RegisterFileParser(LanguageJava, NewJavaFileParser())
 	parser.RegisterFileParser(LanguageTypeScript, NewTypeScriptFileParser())
 	parser.RegisterFileParser(LanguageGo, NewGoFileParser())
-	
+
 	return parser
 }
 
@@ -178,66 +192,66 @@ func (p *DefaultSpecParser) GetFileParser(language SupportedLanguage) (FileParse
 func (p *DefaultSpecParser) ParseFromSource(sourcePath string) (*models.ParseResult, error) {
 	startTime := time.Now()
 	metrics := NewParseMetrics()
-	
+
 	// Validate source path
 	if sourcePath == "" {
 		return nil, fmt.Errorf("source path cannot be empty")
 	}
-	
+
 	info, err := os.Stat(sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to access source path %s: %w", sourcePath, err)
 	}
-	
+
 	if !info.IsDir() {
 		return nil, fmt.Errorf("source path %s is not a directory", sourcePath)
 	}
-	
+
 	// Scan for supported files
 	files, err := p.scanFiles(sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan files: %w", err)
 	}
-	
+
 	metrics.TotalFiles = len(files)
-	
+
 	if len(files) == 0 {
 		return &models.ParseResult{
 			Specs:  []models.ServiceSpec{},
 			Errors: []models.ParseError{},
 		}, nil
 	}
-	
+
 	// Parse files concurrently
 	result, err := p.parseFilesWithMetrics(files, metrics)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Update metrics
 	metrics.ProcessedFiles = len(files)
 	metrics.TotalSpecs = len(result.Specs)
 	metrics.TotalErrors = len(result.Errors)
 	metrics.SetParseDuration(time.Since(startTime))
-	
+
 	// Add metrics to result if available
 	if result != nil {
 		result.Metrics = metrics.GetSummary()
 	}
-	
+
 	return result, nil
 }
 
 // scanFiles recursively scans the directory for supported source files
 func (p *DefaultSpecParser) scanFiles(rootPath string) ([]string, error) {
 	var files []string
-	
+
 	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			// Log error but continue walking
 			return nil
 		}
-		
+
 		// Skip directories
 		if info.IsDir() {
 			// Check if directory should be excluded
@@ -246,15 +260,15 @@ func (p *DefaultSpecParser) scanFiles(rootPath string) ([]string, error) {
 			}
 			return nil
 		}
-		
+
 		// Check if file should be processed
 		if p.shouldProcessFile(path, info) {
 			files = append(files, path)
 		}
-		
+
 		return nil
 	})
-	
+
 	return files, err
 }
 
@@ -264,19 +278,19 @@ func (p *DefaultSpecParser) shouldSkipDirectory(path, name string) bool {
 	if strings.HasPrefix(name, ".") && name != "." {
 		return true
 	}
-	
+
 	// Skip common vendor/build directories
 	excludedDirs := []string{
 		"node_modules", "vendor", ".git", "build", "dist", "target",
 		".idea", ".vscode", "__pycache__", ".gradle", ".mvn",
 	}
-	
+
 	for _, excluded := range excludedDirs {
 		if name == excluded {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -286,7 +300,7 @@ func (p *DefaultSpecParser) shouldProcessFile(path string, info os.FileInfo) boo
 	if info.Size() > 10*1024*1024 { // 10MB limit
 		return false
 	}
-	
+
 	// Check if file extension is supported
 	return p.isSupportedFile(path)
 }
@@ -294,7 +308,7 @@ func (p *DefaultSpecParser) shouldProcessFile(path string, info os.FileInfo) boo
 // isSupportedFile checks if a file has a supported extension
 func (p *DefaultSpecParser) isSupportedFile(filename string) bool {
 	ext := strings.ToLower(filepath.Ext(filename))
-	
+
 	for _, fileType := range p.supportedTypes {
 		for _, supportedExt := range fileType.Extensions {
 			if ext == supportedExt {
@@ -302,14 +316,14 @@ func (p *DefaultSpecParser) isSupportedFile(filename string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
 // getLanguageFromFile determines the programming language from file extension
 func (p *DefaultSpecParser) getLanguageFromFile(filename string) (SupportedLanguage, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
-	
+
 	for _, fileType := range p.supportedTypes {
 		for _, supportedExt := range fileType.Extensions {
 			if ext == supportedExt {
@@ -317,7 +331,7 @@ func (p *DefaultSpecParser) getLanguageFromFile(filename string) (SupportedLangu
 			}
 		}
 	}
-	
+
 	return "", fmt.Errorf("unsupported file extension: %s", ext)
 }
 
@@ -334,20 +348,20 @@ func (p *DefaultSpecParser) parseFilesWithMetrics(files []string, metrics *Parse
 			Errors: []models.ParseError{},
 		}, nil
 	}
-	
+
 	// Create channels for results
 	specsChan := make(chan []models.ServiceSpec, len(files))
 	errorsChan := make(chan []models.ParseError, len(files))
-	
+
 	// Create worker pool
 	workers := p.maxWorkers
 	if workers > len(files) {
 		workers = len(files)
 	}
-	
+
 	fileChan := make(chan string, len(files))
 	var wg sync.WaitGroup
-	
+
 	// Start workers
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
@@ -356,30 +370,30 @@ func (p *DefaultSpecParser) parseFilesWithMetrics(files []string, metrics *Parse
 			p.parseWorkerWithMetrics(fileChan, specsChan, errorsChan, metrics)
 		}()
 	}
-	
+
 	// Send files to workers
 	for _, file := range files {
 		fileChan <- file
 	}
 	close(fileChan)
-	
+
 	// Wait for workers to complete
 	wg.Wait()
 	close(specsChan)
 	close(errorsChan)
-	
+
 	// Collect results
 	var allSpecs []models.ServiceSpec
 	var allErrors []models.ParseError
-	
+
 	for specs := range specsChan {
 		allSpecs = append(allSpecs, specs...)
 	}
-	
+
 	for errors := range errorsChan {
 		allErrors = append(allErrors, errors...)
 	}
-	
+
 	return &models.ParseResult{
 		Specs:  allSpecs,
 		Errors: allErrors,
@@ -416,7 +430,7 @@ func (p *DefaultSpecParser) parseFileWithMetrics(filepath string, metrics *Parse
 			Message: fmt.Sprintf("failed to stat file: %s", err.Error()),
 		}}
 	}
-	
+
 	// Check cache first
 	if p.cache != nil {
 		if entry, found := p.cache.Get(filepath, fileInfo.ModTime()); found {
@@ -429,7 +443,7 @@ func (p *DefaultSpecParser) parseFileWithMetrics(filepath string, metrics *Parse
 			metrics.IncrementCacheMiss()
 		}
 	}
-	
+
 	// Determine language from file extension
 	language, err := p.getLanguageFromFile(filepath)
 	if err != nil {
@@ -439,7 +453,7 @@ func (p *DefaultSpecParser) parseFileWithMetrics(filepath string, metrics *Parse
 			Message: fmt.Sprintf("unsupported file type: %s", err.Error()),
 		}}
 	}
-	
+
 	// Get appropriate file parser
 	fileParser, exists := p.GetFileParser(language)
 	if !exists {
@@ -449,15 +463,15 @@ func (p *DefaultSpecParser) parseFileWithMetrics(filepath string, metrics *Parse
 			Message: fmt.Sprintf("no parser registered for language: %s", language),
 		}}
 	}
-	
+
 	// Parse the file
 	specs, errors := fileParser.ParseFile(filepath)
-	
+
 	// Cache the result
 	if p.cache != nil {
 		p.cache.Put(filepath, fileInfo.ModTime(), specs, errors)
 	}
-	
+
 	return specs, errors
 }
 
@@ -605,20 +619,20 @@ func (pc *ParseCache) Get(filePath string, modTime time.Time) (*CacheEntry, bool
 	if pc == nil {
 		return nil, false
 	}
-	
+
 	pc.mu.RLock()
 	defer pc.mu.RUnlock()
-	
+
 	entry, exists := pc.entries[filePath]
 	if !exists {
 		return nil, false
 	}
-	
+
 	// Check if file has been modified
 	if !entry.ModTime.Equal(modTime) {
 		return nil, false
 	}
-	
+
 	// Update last accessed time
 	entry.LastAccessed = time.Now()
 	return entry, true
@@ -629,18 +643,18 @@ func (pc *ParseCache) Put(filePath string, modTime time.Time, specs []models.Ser
 	if pc == nil {
 		return
 	}
-	
+
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	
+
 	// If cache is full, remove least recently used entry
 	if len(pc.entries) >= pc.maxSize {
 		pc.evictLRU()
 	}
-	
+
 	// Calculate file hash for integrity check
 	hash, _ := pc.calculateFileHash(filePath)
-	
+
 	entry := &CacheEntry{
 		FilePath:     filePath,
 		FileHash:     hash,
@@ -649,7 +663,7 @@ func (pc *ParseCache) Put(filePath string, modTime time.Time, specs []models.Ser
 		Errors:       errors,
 		LastAccessed: time.Now(),
 	}
-	
+
 	pc.entries[filePath] = entry
 }
 
@@ -657,14 +671,14 @@ func (pc *ParseCache) Put(filePath string, modTime time.Time, specs []models.Ser
 func (pc *ParseCache) evictLRU() {
 	var oldestPath string
 	var oldestTime time.Time
-	
+
 	for path, entry := range pc.entries {
 		if oldestPath == "" || entry.LastAccessed.Before(oldestTime) {
 			oldestPath = path
 			oldestTime = entry.LastAccessed
 		}
 	}
-	
+
 	if oldestPath != "" {
 		delete(pc.entries, oldestPath)
 	}
@@ -677,12 +691,12 @@ func (pc *ParseCache) calculateFileHash(filePath string) (string, error) {
 		return "", err
 	}
 	defer file.Close()
-	
+
 	hash := md5.New()
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}
-	
+
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
@@ -691,7 +705,7 @@ func (pc *ParseCache) Clear() {
 	if pc == nil {
 		return
 	}
-	
+
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 	pc.entries = make(map[string]*CacheEntry)
@@ -702,7 +716,7 @@ func (pc *ParseCache) Size() int {
 	if pc == nil {
 		return 0
 	}
-	
+
 	pc.mu.RLock()
 	defer pc.mu.RUnlock()
 	return len(pc.entries)
@@ -763,7 +777,7 @@ func (pm *ParseMetrics) SetParseDuration(duration time.Duration) {
 func (pm *ParseMetrics) GetSummary() map[string]interface{} {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	return map[string]interface{}{
 		"total_files":      pm.TotalFiles,
 		"processed_files":  pm.ProcessedFiles,

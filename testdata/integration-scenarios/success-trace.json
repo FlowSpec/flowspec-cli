@@ -1,0 +1,59 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "user-service"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "spans": [
+            {
+              "traceId": "success123abc456def",
+              "spanId": "span001",
+              "name": "createUser",
+              "startTimeUnixNano": "1640995200000000000",
+              "endTimeUnixNano": "1640995201000000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "POST"}},
+                {"key": "request.email", "value": {"stringValue": "user@example.com"}},
+                {"key": "http.status_code", "value": {"intValue": "201"}},
+                {"key": "operation.id", "value": {"stringValue": "createUser"}}
+              ],
+              "status": {"code": 1, "message": "OK"}
+            },
+            {
+              "traceId": "success123abc456def",
+              "spanId": "span002",
+              "name": "getUser",
+              "startTimeUnixNano": "1640995202000000000",
+              "endTimeUnixNano": "1640995203000000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "GET"}},
+                {"key": "user.id", "value": {"stringValue": "user123"}},
+                {"key": "http.status_code", "value": {"intValue": "200"}},
+                {"key": "operation.id", "value": {"stringValue": "getUser"}}
+              ],
+              "status": {"code": 1, "message": "OK"}
+            },
+            {
+              "traceId": "success123abc456def",
+              "spanId": "span003",
+              "name": "updateUser",
+              "startTimeUnixNano": "1640995204000000000",
+              "endTimeUnixNano": "1640995205000000000",
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "PUT"}},
+                {"key": "user.id", "value": {"stringValue": "user123"}},
+                {"key": "http.status_code", "value": {"intValue": "200"}},
+                {"key": "operation.id", "value": {"stringValue": "updateUser"}}
+              ],
+              "status": {"code": 1, "message": "OK"}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

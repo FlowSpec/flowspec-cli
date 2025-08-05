@@ -1,35 +1,35 @@
 ---
-name: Bug 报告
-about: 创建一个 bug 报告来帮助我们改进
+name: Bug Report
+about: Create a bug report to help us improve
 title: '[BUG] '
 labels: 'bug'
 assignees: ''
 ---
 
-## Bug 描述
-简洁清晰地描述这个 bug。
+## Bug Description
+A clear and concise description of what the bug is.
 
-## 重现步骤
-重现该行为的步骤：
-1. 执行命令 '...'
-2. 使用参数 '....'
-3. 查看错误 '....'
+## Steps to Reproduce
+Steps to reproduce the behavior:
+1. Execute command '...'
+2. With parameters '....'
+3. See error '....'
 
-## 预期行为
-清晰简洁地描述您期望发生的事情。
+## Expected Behavior
+A clear and concise description of what you expected to happen.
 
-## 实际行为
-清晰简洁地描述实际发生的事情。
+## Actual Behavior
+A clear and concise description of what actually happened.
 
-## 环境信息
-- OS: [例如 macOS, Linux, Windows]
-- Go 版本: [例如 1.21]
-- FlowSpec CLI 版本: [例如 v0.1.0]
+## Environment Information
+- OS: [e.g. macOS, Linux, Windows]
+- Go Version: [e.g. 1.21]
+- FlowSpec CLI Version: [e.g. v0.1.0]
 
-## 附加信息
-- 命令输出或错误日志
-- 相关的 ServiceSpec 注解
-- OpenTelemetry 轨迹文件示例（如果相关）
+## Additional Information
+- Command output or error logs
+- Relevant ServiceSpec annotations
+- Example OpenTelemetry trace file (if relevant)
 
-## 可能的解决方案
-如果您有任何想法或建议，请在此描述。
+## Possible Solution
+If you have any ideas or suggestions, please describe them here.

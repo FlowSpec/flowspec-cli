@@ -1,17 +1,31 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package engine
 
 import (
 	"strings"
 	"testing"
 
-	"flowspec-cli/internal/models"
+	"github.com/flowspec/flowspec-cli/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCreateDetailedValidationDetail_Success(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	span := &models.Span{
 		SpanID:  "test-span",
 		TraceID: "test-trace",
@@ -21,21 +35,21 @@ func TestCreateDetailedValidationDetail_Success(t *testing.T) {
 			Message: "Success",
 		},
 		Attributes: map[string]interface{}{
-			"http.method": "POST",
+			"http.method":      "POST",
 			"http.status_code": 200,
 		},
 	}
-	
+
 	context := NewEvaluationContext(span, nil)
 	engine.populateEvaluationContext(context, span)
-	
+
 	assertion := map[string]interface{}{
 		"==": []interface{}{
 			map[string]interface{}{"var": "http_method"},
 			"POST",
 		},
 	}
-	
+
 	assertionResult := &AssertionResult{
 		Passed:     true,
 		Expected:   true,
@@ -43,10 +57,10 @@ func TestCreateDetailedValidationDetail_Success(t *testing.T) {
 		Expression: `{"==":[{"var":"http_method"},"POST"]}`,
 		Message:    "Assertion passed",
 	}
-	
+
 	detail := engine.createDetailedValidationDetail(
 		"precondition", assertion, assertionResult, span, context)
-	
+
 	assert.NotNil(t, detail)
 	assert.Equal(t, "precondition", detail.Type)
 	assert.Equal(t, assertionResult.Expression, detail.Expression)
@@ -54,7 +68,7 @@ func TestCreateDetailedValidationDetail_Success(t *testing.T) {
 	assert.Equal(t, assertionResult.Actual, detail.Actual)
 	assert.Equal(t, span, detail.SpanContext)
 	assert.Contains(t, detail.Message, "Precondition assertion passed")
-	
+
 	// Success case should not have failure details
 	assert.Empty(t, detail.FailureReason)
 	assert.Nil(t, detail.ContextInfo)
@@ -63,7 +77,7 @@ func TestCreateDetailedValidationDetail_Success(t *testing.T) {
 
 func TestCreateDetailedValidationDetail_Failure(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	span := &models.Span{
 		SpanID:  "test-span",
 		TraceID: "test-trace",
@@ -73,21 +87,21 @@ func TestCreateDetailedValidationDetail_Failure(t *testing.T) {
 			Message: "Internal server error",
 		},
 		Attributes: map[string]interface{}{
-			"http.method": "POST",
+			"http.method":      "POST",
 			"http.status_code": 500,
 		},
 	}
-	
+
 	context := NewEvaluationContext(span, nil)
 	engine.populateEvaluationContext(context, span)
-	
+
 	assertion := map[string]interface{}{
 		"==": []interface{}{
 			map[string]interface{}{"var": "http_status_code"},
 			200,
 		},
 	}
-	
+
 	assertionResult := &AssertionResult{
 		Passed:     false,
 		Expected:   200,
@@ -95,24 +109,24 @@ func TestCreateDetailedValidationDetail_Failure(t *testing.T) {
 		Expression: `{"==":[{"var":"http_status_code"},200]}`,
 		Message:    "Assertion failed: expected 200, got 500",
 	}
-	
+
 	detail := engine.createDetailedValidationDetail(
 		"postcondition", assertion, assertionResult, span, context)
-	
+
 	assert.NotNil(t, detail)
 	assert.Equal(t, "postcondition", detail.Type)
 	assert.Equal(t, assertionResult.Expression, detail.Expression)
 	assert.Equal(t, assertionResult.Expected, detail.Expected)
 	assert.Equal(t, assertionResult.Actual, detail.Actual)
 	assert.Equal(t, span, detail.SpanContext)
-	
+
 	// Failure case should have detailed information
 	assert.Contains(t, detail.Message, "Postcondition assertion failed")
 	assert.Contains(t, detail.Message, "test-span")
 	assert.Contains(t, detail.Message, "Expected: 200")
 	assert.Contains(t, detail.Message, "Actual: 500")
 	assert.Contains(t, detail.Message, "Span Status: ERROR")
-	
+
 	assert.NotEmpty(t, detail.FailureReason)
 	assert.NotNil(t, detail.ContextInfo)
 	assert.NotEmpty(t, detail.Suggestions)
@@ -120,45 +134,45 @@ func TestCreateDetailedValidationDetail_Failure(t *testing.T) {
 
 func TestGenerateActionableErrorMessage_Success(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	span := &models.Span{
 		SpanID:  "test-span",
 		TraceID: "test-trace",
 		Name:    "test-operation",
-		Status: models.SpanStatus{Code: "OK"},
+		Status:  models.SpanStatus{Code: "OK"},
 	}
-	
+
 	context := NewEvaluationContext(span, nil)
 	assertion := map[string]interface{}{"==": []interface{}{"a", "a"}}
 	result := &AssertionResult{
 		Passed:  true,
 		Message: "Test passed successfully",
 	}
-	
+
 	message := engine.generateActionableErrorMessage("precondition", assertion, result, span, context)
-	
+
 	assert.Contains(t, message, "Precondition assertion passed")
 	assert.Contains(t, message, "Test passed successfully")
 }
 
 func TestGenerateActionableErrorMessage_Failure(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	span := &models.Span{
-		SpanID:  "test-span",
-		TraceID: "test-trace",
-		Name:    "test-operation",
+		SpanID:   "test-span",
+		TraceID:  "test-trace",
+		Name:     "test-operation",
 		ParentID: "parent-span",
 		Status: models.SpanStatus{
 			Code:    "ERROR",
 			Message: "Internal error",
 		},
 		Attributes: map[string]interface{}{
-			"http.method": "POST",
+			"http.method":  "POST",
 			"service.name": "user-service",
 		},
 	}
-	
+
 	context := NewEvaluationContext(span, nil)
 	assertion := map[string]interface{}{"==": []interface{}{"a", "b"}}
 	result := &AssertionResult{
@@ -168,9 +182,9 @@ func TestGenerateActionableErrorMessage_Failure(t *testing.T) {
 		Expression: `{"==":[{"var":"test"},"expected"]}`,
 		Message:    "Assertion failed",
 	}
-	
+
 	message := engine.generateActionableErrorMessage("postcondition", assertion, result, span, context)
-	
+
 	// Check all required components are present
 	assert.Contains(t, message, "Postcondition assertion failed")
 	assert.Contains(t, message, "test-operation")
@@ -189,16 +203,16 @@ func TestGenerateActionableErrorMessage_Failure(t *testing.T) {
 func TestAnalyzeFailureReason_TypeMismatch(t *testing.T) {
 	engine := NewAlignmentEngine()
 	context := NewEvaluationContext(nil, nil)
-	
+
 	assertion := map[string]interface{}{"==": []interface{}{"200", 200}}
 	result := &AssertionResult{
 		Passed:   false,
 		Expected: "200",
 		Actual:   200,
 	}
-	
+
 	reason := engine.analyzeFailureReason(assertion, result, context)
-	
+
 	assert.Contains(t, reason, "Type mismatch")
 	assert.Contains(t, reason, "expected string")
 	assert.Contains(t, reason, "got int")
@@ -207,7 +221,7 @@ func TestAnalyzeFailureReason_TypeMismatch(t *testing.T) {
 func TestAnalyzeFailureReason_NilValues(t *testing.T) {
 	engine := NewAlignmentEngine()
 	context := NewEvaluationContext(nil, nil)
-	
+
 	testCases := []struct {
 		name     string
 		expected interface{}
@@ -227,7 +241,7 @@ func TestAnalyzeFailureReason_NilValues(t *testing.T) {
 			contains: "Expected nil value but got non-nil",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			assertion := map[string]interface{}{"==": []interface{}{tc.expected, tc.actual}}
@@ -236,7 +250,7 @@ func TestAnalyzeFailureReason_NilValues(t *testing.T) {
 				Expected: tc.expected,
 				Actual:   tc.actual,
 			}
-			
+
 			reason := engine.analyzeFailureReason(assertion, result, context)
 			assert.Contains(t, reason, tc.contains)
 		})
@@ -246,7 +260,7 @@ func TestAnalyzeFailureReason_NilValues(t *testing.T) {
 func TestAnalyzeFailureReason_NumericDifference(t *testing.T) {
 	engine := NewAlignmentEngine()
 	context := NewEvaluationContext(nil, nil)
-	
+
 	testCases := []struct {
 		name     string
 		expected interface{}
@@ -272,7 +286,7 @@ func TestAnalyzeFailureReason_NumericDifference(t *testing.T) {
 			contains: "0.43 less than expected",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			assertion := map[string]interface{}{"==": []interface{}{tc.expected, tc.actual}}
@@ -281,7 +295,7 @@ func TestAnalyzeFailureReason_NumericDifference(t *testing.T) {
 				Expected: tc.expected,
 				Actual:   tc.actual,
 			}
-			
+
 			reason := engine.analyzeFailureReason(assertion, result, context)
 			assert.Contains(t, reason, tc.contains)
 		})
@@ -291,7 +305,7 @@ func TestAnalyzeFailureReason_NumericDifference(t *testing.T) {
 func TestAnalyzeFailureReason_StringDifference(t *testing.T) {
 	engine := NewAlignmentEngine()
 	context := NewEvaluationContext(nil, nil)
-	
+
 	testCases := []struct {
 		name     string
 		expected string
@@ -317,7 +331,7 @@ func TestAnalyzeFailureReason_StringDifference(t *testing.T) {
 			contains: []string{"First difference at position 0", "expected 'H', got 'h'"},
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			assertion := map[string]interface{}{"==": []interface{}{tc.expected, tc.actual}}
@@ -326,7 +340,7 @@ func TestAnalyzeFailureReason_StringDifference(t *testing.T) {
 				Expected: tc.expected,
 				Actual:   tc.actual,
 			}
-			
+
 			reason := engine.analyzeFailureReason(assertion, result, context)
 			for _, expectedContent := range tc.contains {
 				assert.Contains(t, reason, expectedContent)
@@ -337,12 +351,12 @@ func TestAnalyzeFailureReason_StringDifference(t *testing.T) {
 
 func TestAnalyzeVariableResolution(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	// Create context with some variables
 	context := NewEvaluationContext(nil, nil)
 	context.SetVariable("existing_var", "value")
 	context.SetVariable("nil_var", nil)
-	
+
 	testCases := []struct {
 		name      string
 		assertion map[string]interface{}
@@ -389,7 +403,7 @@ func TestAnalyzeVariableResolution(t *testing.T) {
 			contains: "Variable resolution issues",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := engine.analyzeVariableResolution(tc.assertion, context)
@@ -400,7 +414,7 @@ func TestAnalyzeVariableResolution(t *testing.T) {
 
 func TestExtractVariablesFromAssertion(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	testCases := []struct {
 		name      string
 		assertion map[string]interface{}
@@ -458,7 +472,7 @@ func TestExtractVariablesFromAssertion(t *testing.T) {
 			expected:  []string{},
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			variables := engine.extractVariablesFromAssertion(tc.assertion)
@@ -469,7 +483,7 @@ func TestExtractVariablesFromAssertion(t *testing.T) {
 
 func TestExtractContextInfo(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	span := &models.Span{
 		SpanID:    "test-span",
 		TraceID:   "test-trace",
@@ -495,7 +509,7 @@ func TestExtractContextInfo(t *testing.T) {
 			},
 		},
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "test-trace",
 		Spans: map[string]*models.Span{
@@ -503,14 +517,14 @@ func TestExtractContextInfo(t *testing.T) {
 		},
 		RootSpan: span,
 	}
-	
+
 	context := NewEvaluationContext(span, traceData)
 	context.SetVariable("custom_var", "custom_value")
-	
+
 	info := engine.extractContextInfo(span, context)
-	
+
 	require.NotNil(t, info)
-	
+
 	// Check span information
 	spanInfo, ok := info["span"].(map[string]interface{})
 	require.True(t, ok)
@@ -521,30 +535,30 @@ func TestExtractContextInfo(t *testing.T) {
 	assert.Equal(t, int64(1000000000), spanInfo["duration"])
 	assert.Equal(t, false, spanInfo["has_error"])
 	assert.Equal(t, false, spanInfo["is_root"])
-	
+
 	// Check attributes
 	attributes, ok := info["attributes"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, "test-service", attributes["service.name"])
 	assert.Equal(t, "POST", attributes["http.method"])
-	
+
 	// Check events
 	events, ok := info["events"].([]map[string]interface{})
 	require.True(t, ok)
 	require.Len(t, events, 1)
 	assert.Equal(t, "test-event", events[0]["name"])
-	
+
 	// Check variables
 	variables, ok := info["variables"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, "custom_value", variables["custom_var"])
-	
+
 	// Check trace information
 	traceInfo, ok := info["trace"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, "test-trace", traceInfo["id"])
 	assert.Equal(t, 1, traceInfo["span_count"])
-	
+
 	rootSpanInfo, ok := traceInfo["root_span"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, "test-span", rootSpanInfo["id"])
@@ -553,7 +567,7 @@ func TestExtractContextInfo(t *testing.T) {
 
 func TestGenerateSuggestions(t *testing.T) {
 	engine := NewAlignmentEngine()
-	
+
 	testCases := []struct {
 		name       string
 		detailType string
@@ -661,12 +675,12 @@ func TestGenerateSuggestions(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			assertion := map[string]interface{}{"==": []interface{}{tc.result.Expected, tc.result.Actual}}
 			suggestions := engine.generateSuggestions(tc.detailType, assertion, tc.result, tc.span)
-			
+
 			if tc.contains == nil {
 				assert.Nil(t, suggestions)
 			} else {
@@ -702,12 +716,12 @@ func TestUtilityFunctions(t *testing.T) {
 			{true, false},
 			{nil, false},
 		}
-		
+
 		for _, tc := range testCases {
 			assert.Equal(t, tc.expected, isNumeric(tc.value), "Value: %v", tc.value)
 		}
 	})
-	
+
 	t.Run("toFloat64", func(t *testing.T) {
 		testCases := []struct {
 			value    interface{}
@@ -727,19 +741,19 @@ func TestUtilityFunctions(t *testing.T) {
 			{float64(3.14), 3.14},
 			{"42", 0.0}, // Non-numeric returns 0
 		}
-		
+
 		for _, tc := range testCases {
 			assert.Equal(t, tc.expected, toFloat64(tc.value), "Value: %v", tc.value)
 		}
 	})
-	
+
 	t.Run("abs", func(t *testing.T) {
 		assert.Equal(t, 5.0, abs(5.0))
 		assert.Equal(t, 5.0, abs(-5.0))
 		assert.Equal(t, 0.0, abs(0.0))
 		assert.Equal(t, 3.14, abs(-3.14))
 	})
-	
+
 	t.Run("min", func(t *testing.T) {
 		assert.Equal(t, 3, min(3, 5))
 		assert.Equal(t, 3, min(5, 3))
@@ -751,7 +765,7 @@ func TestUtilityFunctions(t *testing.T) {
 func TestIntegration_DetailedValidationWithEngine(t *testing.T) {
 	// Integration test to verify the enhanced validation details work with the full engine
 	engine := NewAlignmentEngine()
-	
+
 	// Create a spec with failing assertions
 	spec := models.ServiceSpec{
 		OperationID: "testOp",
@@ -769,7 +783,7 @@ func TestIntegration_DetailedValidationWithEngine(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Create trace data with a span that will cause precondition failure
 	span := &models.Span{
 		SpanID:  "test-span",
@@ -785,26 +799,26 @@ func TestIntegration_DetailedValidationWithEngine(t *testing.T) {
 			"http.status_code": 201,    // Satisfies postcondition
 		},
 	}
-	
+
 	traceData := &models.TraceData{
 		TraceID: "test-trace",
 		Spans: map[string]*models.Span{
 			"test-span": span,
 		},
 	}
-	
+
 	// Execute alignment
 	result, err := engine.AlignSingleSpec(spec, traceData)
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, models.StatusFailed, result.Status) // Should fail due to precondition
-	assert.Len(t, result.Details, 2) // Precondition + Postcondition
-	
+	assert.Len(t, result.Details, 2)                    // Precondition + Postcondition
+
 	// Check precondition detail (should fail)
 	preconditionDetails := result.GetPreconditionDetails()
 	require.Len(t, preconditionDetails, 1)
-	
+
 	preconditionDetail := preconditionDetails[0]
 	assert.Equal(t, "precondition", preconditionDetail.Type)
 	assert.NotEqual(t, preconditionDetail.Expected, preconditionDetail.Actual)
@@ -816,11 +830,11 @@ func TestIntegration_DetailedValidationWithEngine(t *testing.T) {
 	assert.NotNil(t, preconditionDetail.ContextInfo)
 	assert.NotEmpty(t, preconditionDetail.Suggestions)
 	assert.Equal(t, span, preconditionDetail.SpanContext)
-	
+
 	// Check postcondition detail (should pass)
 	postconditionDetails := result.GetPostconditionDetails()
 	require.Len(t, postconditionDetails, 1)
-	
+
 	postconditionDetail := postconditionDetails[0]
 	assert.Equal(t, "postcondition", postconditionDetail.Type)
 	assert.Contains(t, postconditionDetail.Message, "Postcondition assertion passed")

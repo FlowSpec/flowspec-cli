@@ -1,0 +1,538 @@
+{
+  "summary": {
+    "total": 12,
+    "success": 0,
+    "failed": 2,
+    "skipped": 10,
+    "successRate": 0,
+    "failureRate": 0.16666666666666666,
+    "skipRate": 0.8333333333333334,
+    "averageExecutionTime": 52333,
+    "totalAssertions": 4,
+    "failedAssertions": 4
+  },
+  "results": [
+    {
+      "specOperationId": "mixedCreateUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: mixedCreateUser"
+        }
+      ],
+      "executionTime": 7334,
+      "startTime": 1754198327989460000,
+      "endTime": 1754198327989467000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "mixedUpdateUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: mixedUpdateUser"
+        }
+      ],
+      "executionTime": 1250,
+      "startTime": 1754198327989470000,
+      "endTime": 1754198327989471000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "mixedNonExistentOperation",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: mixedNonExistentOperation"
+        }
+      ],
+      "executionTime": 1583,
+      "startTime": 1754198327989471000,
+      "endTime": 1754198327989473000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "expectSuccessCreateUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: expectSuccessCreateUser"
+        }
+      ],
+      "executionTime": 32917,
+      "startTime": 1754198327989441000,
+      "endTime": 1754198327989473000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "mixedGetUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: mixedGetUser"
+        }
+      ],
+      "executionTime": 750,
+      "startTime": 1754198327989473000,
+      "endTime": 1754198327989474000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "createUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: createUser"
+        }
+      ],
+      "executionTime": 17291,
+      "startTime": 1754198327989450000,
+      "endTime": 1754198327989467000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "mixedDeleteUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: mixedDeleteUser"
+        }
+      ],
+      "executionTime": 1375,
+      "startTime": 1754198327989474000,
+      "endTime": 1754198327989475000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "expectSuccessGetUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: expectSuccessGetUser"
+        }
+      ],
+      "executionTime": 959,
+      "startTime": 1754198327989476000,
+      "endTime": 1754198327989476000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "getUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: getUser"
+        }
+      ],
+      "executionTime": 1584,
+      "startTime": 1754198327989475000,
+      "endTime": 1754198327989477000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "updateUser",
+      "status": "SKIPPED",
+      "details": [
+        {
+          "type": "matching",
+          "expression": "span_match",
+          "expected": "found",
+          "actual": "found",
+          "message": "No matching spans found for operation: updateUser"
+        }
+      ],
+      "executionTime": 750,
+      "startTime": 1754198327989477000,
+      "endTime": 1754198327989477000,
+      "matchedSpans": null,
+      "assertionsTotal": 0,
+      "assertionsPassed": 0,
+      "assertionsFailed": 0
+    },
+    {
+      "specOperationId": "strictCreateUser",
+      "status": "FAILED",
+      "details": [
+        {
+          "type": "precondition",
+          "expression": "{\"min_password_length\":{\"\\u003e=\":[{\"strlen\":[{\"var\":\"request_password\"}]},8]},\"required_email\":{\"!=\":[{\"var\":\"request_email\"},null]},\"required_method\":{\"==\":[{\"var\":\"http_method\"},\"POST\"]},\"valid_email_format\":{\"regex\":[{\"var\":\"request_email\"},\"^[\\\\w\\\\.-]+@[\\\\w\\\\.-]+\\\\.[a-zA-Z]{2,}$\"]}}",
+          "expected": true,
+          "actual": {
+            "min_password_length": {
+              "\u003e=": [
+                {
+                  "strlen": [
+                    {
+                      "var": "request_password"
+                    }
+                  ]
+                },
+                8
+              ]
+            },
+            "required_email": {
+              "!=": [
+                {
+                  "var": "request_email"
+                },
+                null
+              ]
+            },
+            "required_method": {
+              "==": [
+                {
+                  "var": "http_method"
+                },
+                "POST"
+              ]
+            },
+            "valid_email_format": {
+              "regex": [
+                {
+                  "var": "request_email"
+                },
+                "^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$"
+              ]
+            }
+          },
+          "message": "Precondition assertion passed: Assertion passed: map[min_password_length:map[\u003e=:[map[strlen:[map[var:request_password]]] 8]] required_email:map[!=:[map[var:request_email] \u003cnil\u003e]] required_method:map[==:[map[var:http_method] POST]] valid_email_format:map[regex:[map[var:request_email] ^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$]]] evaluated to map[min_password_length:map[\u003e=:[map[strlen:[map[var:request_password]]] 8]] required_email:map[!=:[map[var:request_email] \u003cnil\u003e]] required_method:map[==:[map[var:http_method] POST]] valid_email_format:map[regex:[map[var:request_email] ^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$]]]",
+          "spanContext": {
+            "spanId": "span001",
+            "traceId": "precond123abc456def",
+            "name": "strictCreateUser",
+            "startTime": 1640995200000000000,
+            "endTime": 1640995201000000000,
+            "status": {
+              "code": "OK",
+              "message": "OK"
+            },
+            "attributes": {
+              "http.method": "GET",
+              "operation.id": "strictCreateUser",
+              "request.email": "invalid-email",
+              "request.password": "123"
+            },
+            "events": null
+          }
+        },
+        {
+          "type": "postcondition",
+          "expression": "{\"success_status\":{\"==\":[{\"var\":\"span.status.code\"},\"OK\"]}}",
+          "expected": true,
+          "actual": false,
+          "message": "Postcondition assertion failed in span 'strictCreateUser' (ID: span001)\nAssertion: {\"success_status\":{\"==\":[{\"var\":\"span.status.code\"},\"OK\"]}}\nExpected: true (type: bool)\nActual: false (type: bool)\nJSONLogic Result: Expected true, Got false\nSpan Status: OK - OK\nRelevant Span Attributes:\n  http.method: GET\n  request.email: invalid-email\n  request.password: 123\n  operation.id: strictCreateUser\nTrace ID: precond123abc456def\n",
+          "spanContext": {
+            "spanId": "span001",
+            "traceId": "precond123abc456def",
+            "name": "strictCreateUser",
+            "startTime": 1640995200000000000,
+            "endTime": 1640995201000000000,
+            "status": {
+              "code": "OK",
+              "message": "OK"
+            },
+            "attributes": {
+              "http.method": "GET",
+              "operation.id": "strictCreateUser",
+              "request.email": "invalid-email",
+              "request.password": "123"
+            },
+            "events": null
+          },
+          "failureReason": "JSONLogic evaluation error: The operator \"success_status\" is not supported",
+          "contextInfo": {
+            "attributes": {
+              "http.method": "GET",
+              "operation.id": "strictCreateUser",
+              "request.email": "invalid-email",
+              "request.password": "123"
+            },
+            "span": {
+              "duration": 1000000000,
+              "end_time": 1640995201000000000,
+              "has_error": false,
+              "id": "span001",
+              "is_root": true,
+              "name": "strictCreateUser",
+              "parent_id": "",
+              "start_time": 1640995200000000000,
+              "status": {
+                "code": "OK",
+                "message": "OK"
+              },
+              "trace_id": "precond123abc456def"
+            },
+            "trace": {
+              "id": "precond123abc456def",
+              "root_span": {
+                "id": "span002",
+                "name": "strictGetUser"
+              },
+              "span_count": 2
+            },
+            "variables": {
+              "http.method": "GET",
+              "http_method": "GET",
+              "operation.id": "strictCreateUser",
+              "operation_id": "strictCreateUser",
+              "request.email": "invalid-email",
+              "request.password": "123",
+              "request_email": "invalid-email",
+              "request_password": "123",
+              "span.duration": 1000000000,
+              "span.end_time": 1640995201000000000,
+              "span.has_error": false,
+              "span.id": "span001",
+              "span.is_root": true,
+              "span.name": "strictCreateUser",
+              "span.start_time": 1640995200000000000,
+              "span.status.code": "OK",
+              "span.status.message": "OK",
+              "trace.id": "precond123abc456def",
+              "trace.root_span.id": "span002",
+              "trace.span_count": 2
+            }
+          },
+          "suggestions": [
+            "Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior",
+            "Postcondition failures may indicate that the service behavior has changed or the assertion needs updating"
+          ]
+        }
+      ],
+      "executionTime": 274125,
+      "startTime": 1754198327989458000,
+      "endTime": 1754198327989732000,
+      "matchedSpans": [
+        "span001"
+      ],
+      "assertionsTotal": 2,
+      "assertionsPassed": 0,
+      "assertionsFailed": 2
+    },
+    {
+      "specOperationId": "strictGetUser",
+      "status": "FAILED",
+      "details": [
+        {
+          "type": "precondition",
+          "expression": "{\"has_auth_token\":{\"!=\":[{\"var\":\"auth_token\"},null]},\"required_method\":{\"==\":[{\"var\":\"http_method\"},\"GET\"]},\"required_user_id\":{\"!=\":[{\"var\":\"user_id\"},null]},\"valid_user_id_format\":{\"regex\":[{\"var\":\"user_id\"},\"^[a-zA-Z0-9]{8,}$\"]}}",
+          "expected": true,
+          "actual": {
+            "has_auth_token": {
+              "!=": [
+                {
+                  "var": "auth_token"
+                },
+                null
+              ]
+            },
+            "required_method": {
+              "==": [
+                {
+                  "var": "http_method"
+                },
+                "GET"
+              ]
+            },
+            "required_user_id": {
+              "!=": [
+                {
+                  "var": "user_id"
+                },
+                null
+              ]
+            },
+            "valid_user_id_format": {
+              "regex": [
+                {
+                  "var": "user_id"
+                },
+                "^[a-zA-Z0-9]{8,}$"
+              ]
+            }
+          },
+          "message": "Precondition assertion passed: Assertion passed: map[has_auth_token:map[!=:[map[var:auth_token] \u003cnil\u003e]] required_method:map[==:[map[var:http_method] GET]] required_user_id:map[!=:[map[var:user_id] \u003cnil\u003e]] valid_user_id_format:map[regex:[map[var:user_id] ^[a-zA-Z0-9]{8,}$]]] evaluated to map[has_auth_token:map[!=:[map[var:auth_token] \u003cnil\u003e]] required_method:map[==:[map[var:http_method] GET]] required_user_id:map[!=:[map[var:user_id] \u003cnil\u003e]] valid_user_id_format:map[regex:[map[var:user_id] ^[a-zA-Z0-9]{8,}$]]]",
+          "spanContext": {
+            "spanId": "span002",
+            "traceId": "precond123abc456def",
+            "name": "strictGetUser",
+            "startTime": 1640995202000000000,
+            "endTime": 1640995203000000000,
+            "status": {
+              "code": "OK",
+              "message": "OK"
+            },
+            "attributes": {
+              "http.method": "POST",
+              "operation.id": "strictGetUser",
+              "user.id": "123"
+            },
+            "events": null
+          }
+        },
+        {
+          "type": "postcondition",
+          "expression": "{\"success_status\":{\"==\":[{\"var\":\"span.status.code\"},\"OK\"]}}",
+          "expected": true,
+          "actual": false,
+          "message": "Postcondition assertion failed in span 'strictGetUser' (ID: span002)\nAssertion: {\"success_status\":{\"==\":[{\"var\":\"span.status.code\"},\"OK\"]}}\nExpected: true (type: bool)\nActual: false (type: bool)\nJSONLogic Result: Expected true, Got false\nSpan Status: OK - OK\nRelevant Span Attributes:\n  http.method: POST\n  user.id: 123\n  operation.id: strictGetUser\nTrace ID: precond123abc456def\n",
+          "spanContext": {
+            "spanId": "span002",
+            "traceId": "precond123abc456def",
+            "name": "strictGetUser",
+            "startTime": 1640995202000000000,
+            "endTime": 1640995203000000000,
+            "status": {
+              "code": "OK",
+              "message": "OK"
+            },
+            "attributes": {
+              "http.method": "POST",
+              "operation.id": "strictGetUser",
+              "user.id": "123"
+            },
+            "events": null
+          },
+          "failureReason": "JSONLogic evaluation error: The operator \"success_status\" is not supported",
+          "contextInfo": {
+            "attributes": {
+              "http.method": "POST",
+              "operation.id": "strictGetUser",
+              "user.id": "123"
+            },
+            "span": {
+              "duration": 1000000000,
+              "end_time": 1640995203000000000,
+              "has_error": false,
+              "id": "span002",
+              "is_root": true,
+              "name": "strictGetUser",
+              "parent_id": "",
+              "start_time": 1640995202000000000,
+              "status": {
+                "code": "OK",
+                "message": "OK"
+              },
+              "trace_id": "precond123abc456def"
+            },
+            "trace": {
+              "id": "precond123abc456def",
+              "root_span": {
+                "id": "span002",
+                "name": "strictGetUser"
+              },
+              "span_count": 2
+            },
+            "variables": {
+              "http.method": "POST",
+              "http_method": "POST",
+              "operation.id": "strictGetUser",
+              "operation_id": "strictGetUser",
+              "span.duration": 1000000000,
+              "span.end_time": 1640995203000000000,
+              "span.has_error": false,
+              "span.id": "span002",
+              "span.is_root": true,
+              "span.name": "strictGetUser",
+              "span.start_time": 1640995202000000000,
+              "span.status.code": "OK",
+              "span.status.message": "OK",
+              "trace.id": "precond123abc456def",
+              "trace.root_span.id": "span002",
+              "trace.span_count": 2,
+              "user.id": "123",
+              "user_id": "123"
+            }
+          },
+          "suggestions": [
+            "Review the span attributes and trace data to ensure the assertion logic matches the actual service behavior",
+            "Postcondition failures may indicate that the service behavior has changed or the assertion needs updating"
+          ]
+        }
+      ],
+      "executionTime": 288083,
+      "startTime": 1754198327989474000,
+      "endTime": 1754198327989762000,
+      "matchedSpans": [
+        "span002"
+      ],
+      "assertionsTotal": 2,
+      "assertionsPassed": 0,
+      "assertionsFailed": 2
+    }
+  ],
+  "executionTime": 363125,
+  "startTime": 1754198327989402000,
+  "endTime": 1754198327989765000,
+  "performanceInfo": {
+    "specsProcessed": 12,
+    "spansMatched": 2,
+    "assertionsEvaluated": 4,
+    "concurrentWorkers": 4,
+    "memoryUsageMB": 1.784912109375,
+    "processingRate": 33046.47160068847
+  }
+}

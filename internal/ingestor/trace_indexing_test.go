@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package ingestor
 
 import (
@@ -5,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"flowspec-cli/internal/models"
+	"github.com/flowspec/flowspec-cli/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,29 +27,29 @@ import (
 func TestTraceDataOrganization_SpanTreeBuilding(t *testing.T) {
 	// Create trace data with hierarchical spans
 	traceData := createHierarchicalTraceData()
-	
+
 	err := traceData.BuildSpanTree()
 	require.NoError(t, err)
-	
+
 	// Verify root span identification
 	assert.NotNil(t, traceData.RootSpan)
 	assert.Equal(t, "root-span", traceData.RootSpan.SpanID)
 	assert.Equal(t, "", traceData.RootSpan.ParentID)
-	
+
 	// Verify span tree structure
 	assert.NotNil(t, traceData.SpanTree)
 	assert.Equal(t, traceData.RootSpan.SpanID, traceData.SpanTree.Span.SpanID)
-	
+
 	// Root should have 2 direct children
 	assert.Len(t, traceData.SpanTree.Children, 2)
-	
+
 	// Verify child relationships
 	child1 := traceData.SpanTree.Children[0]
 	child2 := traceData.SpanTree.Children[1]
-	
+
 	assert.Equal(t, "root-span", child1.Span.ParentID)
 	assert.Equal(t, "root-span", child2.Span.ParentID)
-	
+
 	// One child should have its own child (grandchild of root)
 	var grandchildFound bool
 	for _, child := range traceData.SpanTree.Children {
@@ -51,30 +65,30 @@ func TestTraceDataOrganization_SpanTreeBuilding(t *testing.T) {
 func TestTraceDataOrganization_SpanTreeWithMultipleLevels(t *testing.T) {
 	// Create deep hierarchy: root -> level1 -> level2 -> level3
 	traceData := createDeepHierarchyTraceData()
-	
+
 	err := traceData.BuildSpanTree()
 	require.NoError(t, err)
-	
+
 	// Verify 4-level hierarchy
 	assert.NotNil(t, traceData.SpanTree)
-	
+
 	// Level 0 (root)
 	root := traceData.SpanTree
 	assert.Equal(t, "level0-span", root.Span.SpanID)
 	assert.Len(t, root.Children, 1)
-	
+
 	// Level 1
 	level1 := root.Children[0]
 	assert.Equal(t, "level1-span", level1.Span.SpanID)
 	assert.Equal(t, "level0-span", level1.Span.ParentID)
 	assert.Len(t, level1.Children, 1)
-	
+
 	// Level 2
 	level2 := level1.Children[0]
 	assert.Equal(t, "level2-span", level2.Span.SpanID)
 	assert.Equal(t, "level1-span", level2.Span.ParentID)
 	assert.Len(t, level2.Children, 1)
-	
+
 	// Level 3 (leaf)
 	level3 := level2.Children[0]
 	assert.Equal(t, "level3-span", level3.Span.SpanID)
@@ -101,7 +115,7 @@ func TestTraceDataOrganization_NoRootSpan(t *testing.T) {
 			},
 		},
 	}
-	
+
 	err := traceData.BuildSpanTree()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no root span found")
@@ -112,18 +126,20 @@ func TestTraceDataOrganization_EmptyTrace(t *testing.T) {
 		TraceID: "empty-trace",
 		Spans:   map[string]*models.Span{},
 	}
-	
+
+	// Building a tree from no spans should not produce an error.
 	err := traceData.BuildSpanTree()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no spans available to build tree")
+	assert.NoError(t, err)
+	assert.Nil(t, traceData.RootSpan, "RootSpan should be nil for an empty trace")
+	assert.Nil(t, traceData.SpanTree, "SpanTree should be nil for an empty trace")
 }
 
 func TestTraceIndexing_SpanIDIndex(t *testing.T) {
 	store := NewTraceStore()
 	traceData := createTestTraceDataForIndexing()
-	
+
 	store.SetTraceData(traceData)
-	
+
 	// Test span ID lookups
 	testCases := []struct {
 		spanID   string
@@ -135,7 +151,7 @@ func TestTraceIndexing_SpanIDIndex(t *testing.T) {
 		{"database-span", true, "database-query"},
 		{"nonexistent-span", false, ""},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.spanID, func(t *testing.T) {
 			span := store.FindSpanByID(tc.spanID)
@@ -153,9 +169,9 @@ func TestTraceIndexing_SpanIDIndex(t *testing.T) {
 func TestTraceIndexing_NameIndex(t *testing.T) {
 	store := NewTraceStore()
 	traceData := createTestTraceDataForIndexing()
-	
+
 	store.SetTraceData(traceData)
-	
+
 	// Test name-based lookups
 	testCases := []struct {
 		name          string
@@ -167,18 +183,18 @@ func TestTraceIndexing_NameIndex(t *testing.T) {
 		{"database-query", 2, []string{"database-span", "database-span-2"}}, // Multiple spans with same name
 		{"nonexistent-operation", 0, []string{}},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			spans := store.FindSpansByName(tc.name)
 			assert.Len(t, spans, tc.expectedCount)
-			
+
 			if tc.expectedCount > 0 {
 				spanIDs := make([]string, len(spans))
 				for i, span := range spans {
 					spanIDs[i] = span.SpanID
 				}
-				
+
 				for _, expectedSpanID := range tc.expectedSpans {
 					assert.Contains(t, spanIDs, expectedSpanID)
 				}
@@ -190,9 +206,9 @@ func TestTraceIndexing_NameIndex(t *testing.T) {
 func TestTraceIndexing_OperationIDIndex(t *testing.T) {
 	store := NewTraceStore()
 	traceData := createTestTraceDataForIndexing()
-	
+
 	store.SetTraceData(traceData)
-	
+
 	// Test operation ID lookups
 	testCases := []struct {
 		operationID   string
@@ -204,18 +220,18 @@ func TestTraceIndexing_OperationIDIndex(t *testing.T) {
 		{"queryDatabase", 2, []string{"database-span", "database-span-2"}}, // Multiple spans with same operation
 		{"nonexistentOp", 0, []string{}},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.operationID, func(t *testing.T) {
 			spans := store.FindSpansByOperationID(tc.operationID)
 			assert.Len(t, spans, tc.expectedCount)
-			
+
 			if tc.expectedCount > 0 {
 				spanIDs := make([]string, len(spans))
 				for i, span := range spans {
 					spanIDs[i] = span.SpanID
 				}
-				
+
 				for _, expectedSpanID := range tc.expectedSpans {
 					assert.Contains(t, spanIDs, expectedSpanID)
 				}
@@ -226,15 +242,15 @@ func TestTraceIndexing_OperationIDIndex(t *testing.T) {
 
 func TestTraceIndexing_IndexRebuildOnDataChange(t *testing.T) {
 	store := NewTraceStore()
-	
+
 	// Set initial data
 	initialData := createTestTraceDataForIndexing()
 	store.SetTraceData(initialData)
-	
+
 	// Verify initial state
 	assert.Equal(t, 5, store.GetSpanCount())
 	assert.NotNil(t, store.FindSpanByID("service-a-span"))
-	
+
 	// Change data
 	newData := &models.TraceData{
 		TraceID: "new-trace",
@@ -249,18 +265,18 @@ func TestTraceIndexing_IndexRebuildOnDataChange(t *testing.T) {
 			},
 		},
 	}
-	
+
 	store.SetTraceData(newData)
-	
+
 	// Verify indexes were rebuilt
 	assert.Equal(t, 1, store.GetSpanCount())
 	assert.Nil(t, store.FindSpanByID("service-a-span")) // Old span should be gone
 	assert.NotNil(t, store.FindSpanByID("new-span"))    // New span should be found
-	
+
 	// Verify new indexes work
 	spans := store.FindSpansByName("new-operation")
 	assert.Len(t, spans, 1)
-	
+
 	opSpans := store.FindSpansByOperationID("newOp")
 	assert.Len(t, opSpans, 1)
 }
@@ -269,15 +285,15 @@ func TestTraceIndexing_ConcurrentAccess(t *testing.T) {
 	store := NewTraceStore()
 	traceData := createTestTraceDataForIndexing()
 	store.SetTraceData(traceData)
-	
+
 	// Test concurrent reads
 	done := make(chan bool, 10)
-	
+
 	// Start multiple goroutines doing concurrent reads
 	for i := 0; i < 10; i++ {
 		go func(id int) {
 			defer func() { done <- true }()
-			
+
 			// Perform various read operations
 			for j := 0; j < 100; j++ {
 				_ = store.FindSpanByID("service-a-span")
@@ -288,12 +304,12 @@ func TestTraceIndexing_ConcurrentAccess(t *testing.T) {
 			}
 		}(i)
 	}
-	
+
 	// Wait for all goroutines to complete
 	for i := 0; i < 10; i++ {
 		<-done
 	}
-	
+
 	// Verify data integrity after concurrent access
 	assert.Equal(t, 5, store.GetSpanCount())
 	assert.NotNil(t, store.FindSpanByID("service-a-span"))
@@ -301,26 +317,26 @@ func TestTraceIndexing_ConcurrentAccess(t *testing.T) {
 
 func TestTraceIndexing_QueryPerformance(t *testing.T) {
 	store := NewTraceStore()
-	
+
 	// Create large trace data for performance testing
 	largeTraceData := createLargeTraceDataForIndexing(1000) // 1000 spans
 	store.SetTraceData(largeTraceData)
-	
+
 	// Measure query performance
 	start := time.Now()
-	
+
 	// Perform many queries
 	for i := 0; i < 1000; i++ {
 		spanID := fmt.Sprintf("span-%d", i%1000)
 		span := store.FindSpanByID(spanID)
 		assert.NotNil(t, span)
 	}
-	
+
 	duration := time.Since(start)
-	
+
 	// Should be able to perform 1000 queries quickly
 	assert.Less(t, duration, 100*time.Millisecond, "1000 span ID queries should complete within 100ms")
-	
+
 	// Test name-based queries
 	start = time.Now()
 	for i := 0; i < 100; i++ {
@@ -329,7 +345,7 @@ func TestTraceIndexing_QueryPerformance(t *testing.T) {
 		assert.NotEmpty(t, spans)
 	}
 	duration = time.Since(start)
-	
+
 	assert.Less(t, duration, 50*time.Millisecond, "100 name queries should complete within 50ms")
 }
 
@@ -337,17 +353,17 @@ func TestSpanTreeUtilities(t *testing.T) {
 	traceData := createHierarchicalTraceData()
 	err := traceData.BuildSpanTree()
 	require.NoError(t, err)
-	
+
 	// Test SpanNode utilities
 	root := traceData.SpanTree
-	
+
 	// Test child count
 	assert.Equal(t, 2, root.GetChildCount())
-	
+
 	// Test total descendants
 	totalDescendants := root.GetTotalDescendants()
 	assert.Equal(t, 3, totalDescendants) // 2 direct children + 1 grandchild
-	
+
 	// Test on leaf nodes
 	for _, child := range root.Children {
 		if len(child.Children) == 0 {
@@ -359,26 +375,26 @@ func TestSpanTreeUtilities(t *testing.T) {
 
 func TestTraceDataQueries(t *testing.T) {
 	traceData := createTestTraceDataForIndexing()
-	
+
 	// Test FindSpanByID
 	span := traceData.FindSpanByID("service-a-span")
 	assert.NotNil(t, span)
 	assert.Equal(t, "service-a-operation", span.Name)
-	
+
 	// Test FindSpansByName
 	spans := traceData.FindSpansByName("database-query")
 	assert.Len(t, spans, 2) // Two database spans with same name
-	
+
 	// Test GetAllSpans
 	allSpans := traceData.GetAllSpans()
 	assert.Len(t, allSpans, 5)
-	
+
 	// Verify all spans are included
 	spanIDs := make(map[string]bool)
 	for _, span := range allSpans {
 		spanIDs[span.SpanID] = true
 	}
-	
+
 	expectedSpanIDs := []string{"root-span", "service-a-span", "service-b-span", "database-span", "database-span-2"}
 	for _, expectedID := range expectedSpanIDs {
 		assert.True(t, spanIDs[expectedID], "Should find span ID: %s", expectedID)
@@ -518,7 +534,7 @@ func createTestTraceDataForIndexing() *models.TraceData {
 
 func createLargeTraceDataForIndexing(numSpans int) *models.TraceData {
 	spans := make(map[string]*models.Span)
-	
+
 	// Create root span
 	spans["root"] = &models.Span{
 		SpanID:   "root",
@@ -529,13 +545,13 @@ func createLargeTraceDataForIndexing(numSpans int) *models.TraceData {
 			"operation.id": "rootOp",
 		},
 	}
-	
+
 	// Create many child spans
 	for i := 0; i < numSpans; i++ {
 		spanID := fmt.Sprintf("span-%d", i)
 		operationName := fmt.Sprintf("operation-%d", i%10) // 10 different operation names
 		operationID := fmt.Sprintf("op-%d", i%20)          // 20 different operation IDs
-		
+
 		spans[spanID] = &models.Span{
 			SpanID:   spanID,
 			TraceID:  "large-trace",
@@ -547,7 +563,7 @@ func createLargeTraceDataForIndexing(numSpans int) *models.TraceData {
 			},
 		}
 	}
-	
+
 	return &models.TraceData{
 		TraceID: "large-trace",
 		Spans:   spans,

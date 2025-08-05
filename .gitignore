@@ -52,5 +52,7 @@ temp/
 .env
 .env.local
 
+.kiro/
+
 # Binary name
 flowspec-cli

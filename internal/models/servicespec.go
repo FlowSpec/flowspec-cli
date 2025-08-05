@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package models
 
 import (
@@ -71,10 +85,10 @@ func (e *ParseError) Error() string {
 
 // TraceData represents a complete trace with all its spans organized for efficient querying
 type TraceData struct {
-	TraceID   string             `json:"traceId"`
-	RootSpan  *Span             `json:"rootSpan"`
-	Spans     map[string]*Span  `json:"spans"`
-	SpanTree  *SpanNode         `json:"spanTree"`
+	TraceID  string           `json:"traceId"`
+	RootSpan *Span            `json:"rootSpan"`
+	Spans    map[string]*Span `json:"spans"`
+	SpanTree *SpanNode        `json:"spanTree"`
 }
 
 // Span represents a single span in an OpenTelemetry trace
@@ -83,8 +97,8 @@ type Span struct {
 	TraceID    string                 `json:"traceId"`
 	ParentID   string                 `json:"parentSpanId,omitempty"`
 	Name       string                 `json:"name"`
-	StartTime  int64                  `json:"startTime"`  // Unix timestamp in nanoseconds
-	EndTime    int64                  `json:"endTime"`    // Unix timestamp in nanoseconds
+	StartTime  int64                  `json:"startTime"` // Unix timestamp in nanoseconds
+	EndTime    int64                  `json:"endTime"`   // Unix timestamp in nanoseconds
 	Status     SpanStatus             `json:"status"`
 	Attributes map[string]interface{} `json:"attributes"`
 	Events     []SpanEvent            `json:"events"`
@@ -92,7 +106,7 @@ type Span struct {
 
 // SpanStatus represents the status of a span
 type SpanStatus struct {
-	Code    string `json:"code"`    // "OK", "ERROR", "TIMEOUT"
+	Code    string `json:"code"` // "OK", "ERROR", "TIMEOUT"
 	Message string `json:"message"`
 }
 
@@ -105,37 +119,52 @@ type SpanEvent struct {
 
 // SpanNode represents a node in the span tree structure
 type SpanNode struct {
-	Span     *Span      `json:"span"`
+	Span     *Span       `json:"span"`
 	Children []*SpanNode `json:"children"`
 }
 
 // BuildSpanTree constructs a hierarchical tree structure from the spans in TraceData
 func (td *TraceData) BuildSpanTree() error {
+	// If there are no spans, there is no tree to build. This is a valid state.
 	if len(td.Spans) == 0 {
-		return fmt.Errorf("no spans available to build tree")
+		return nil
 	}
 
-	// Find root span (span with no parent)
-	var rootSpan *Span
+	nodes := make(map[string]*SpanNode, len(td.Spans))
+	var rootNodes []*SpanNode
+
+	// First pass: create all nodes and find potential roots
 	for _, span := range td.Spans {
+		nodes[span.SpanID] = &SpanNode{Span: span}
 		if span.ParentID == "" {
-			rootSpan = span
-			break
+			rootNodes = append(rootNodes, nodes[span.SpanID])
 		}
 	}
 
-	if rootSpan == nil {
-		return fmt.Errorf("no root span found")
+	// Second pass: link children to their parents
+	for _, span := range td.Spans {
+		if span.ParentID != "" {
+			if parentNode, ok := nodes[span.ParentID]; ok {
+				childNode := nodes[span.SpanID]
+				parentNode.Children = append(parentNode.Children, childNode)
+			}
+			// Note: Spans with non-existent parents will be ignored and not part of the tree.
+		}
 	}
 
-	td.RootSpan = rootSpan
-	td.SpanTree = &SpanNode{
-		Span:     rootSpan,
-		Children: []*SpanNode{},
+	// Determine the final root. In a valid trace, there should be exactly one root.
+	// We handle cases with multiple roots gracefully by picking the first one.
+	if len(rootNodes) > 0 {
+		td.RootSpan = rootNodes[0].Span
+		td.SpanTree = rootNodes[0]
+	} else if len(td.Spans) > 0 {
+		// Handle cases where no span has an empty ParentID (e.g., circular dependencies or all spans have parents)
+		// As a fallback, we could pick the span with the earliest start time.
+		// For now, we'll consider this an invalid trace structure.
+		return fmt.Errorf("no root span found (all spans have parents)")
 	}
+	// If len(td.Spans) is 0, we've already returned nil, so no error here.
 
-	// Build the tree recursively
-	td.buildSpanTreeRecursive(td.SpanTree)
 	return nil
 }
 
@@ -251,41 +280,41 @@ type AlignmentReport struct {
 
 // AlignmentSummary provides summary statistics for the alignment report
 type AlignmentSummary struct {
-	Total              int     `json:"total"`
-	Success            int     `json:"success"`
-	Failed             int     `json:"failed"`
-	Skipped            int     `json:"skipped"`
-	SuccessRate        float64 `json:"successRate"`        // Success rate as percentage (0.0 to 1.0)
-	FailureRate        float64 `json:"failureRate"`        // Failure rate as percentage (0.0 to 1.0)
-	SkipRate           float64 `json:"skipRate"`           // Skip rate as percentage (0.0 to 1.0)
-	AverageExecutionTime int64 `json:"averageExecutionTime"` // Average execution time per spec in nanoseconds
-	TotalAssertions    int     `json:"totalAssertions"`    // Total number of assertions evaluated
-	FailedAssertions   int     `json:"failedAssertions"`   // Number of failed assertions
+	Total                int     `json:"total"`
+	Success              int     `json:"success"`
+	Failed               int     `json:"failed"`
+	Skipped              int     `json:"skipped"`
+	SuccessRate          float64 `json:"successRate"`          // Success rate as percentage (0.0 to 1.0)
+	FailureRate          float64 `json:"failureRate"`          // Failure rate as percentage (0.0 to 1.0)
+	SkipRate             float64 `json:"skipRate"`             // Skip rate as percentage (0.0 to 1.0)
+	AverageExecutionTime int64   `json:"averageExecutionTime"` // Average execution time per spec in nanoseconds
+	TotalAssertions      int     `json:"totalAssertions"`      // Total number of assertions evaluated
+	FailedAssertions     int     `json:"failedAssertions"`     // Number of failed assertions
 }
 
 // PerformanceInfo contains performance monitoring data
 type PerformanceInfo struct {
-	SpecsProcessed       int     `json:"specsProcessed"`       // Number of specs processed
-	SpansMatched         int     `json:"spansMatched"`         // Number of spans matched
-	AssertionsEvaluated  int     `json:"assertionsEvaluated"`  // Total assertions evaluated
-	ConcurrentWorkers    int     `json:"concurrentWorkers"`    // Number of concurrent workers used
-	MemoryUsageMB        float64 `json:"memoryUsageMB"`        // Peak memory usage in MB
-	ProcessingRate       float64 `json:"processingRate"`       // Specs processed per second
+	SpecsProcessed      int     `json:"specsProcessed"`      // Number of specs processed
+	SpansMatched        int     `json:"spansMatched"`        // Number of spans matched
+	AssertionsEvaluated int     `json:"assertionsEvaluated"` // Total assertions evaluated
+	ConcurrentWorkers   int     `json:"concurrentWorkers"`   // Number of concurrent workers used
+	MemoryUsageMB       float64 `json:"memoryUsageMB"`       // Peak memory usage in MB
+	ProcessingRate      float64 `json:"processingRate"`      // Specs processed per second
 }
 
 // AlignmentResult represents the result of aligning a single ServiceSpec with trace data
 type AlignmentResult struct {
-	SpecOperationID   string            `json:"specOperationId"`
-	Status            AlignmentStatus   `json:"status"`
-	Details           []ValidationDetail `json:"details"`
-	ExecutionTime     int64             `json:"executionTime"`     // Duration in nanoseconds
-	StartTime         int64             `json:"startTime"`         // Start timestamp in Unix nanoseconds
-	EndTime           int64             `json:"endTime"`           // End timestamp in Unix nanoseconds
-	MatchedSpans      []string          `json:"matchedSpans"`      // IDs of spans that matched this spec
-	AssertionsTotal   int               `json:"assertionsTotal"`   // Total number of assertions evaluated
-	AssertionsPassed  int               `json:"assertionsPassed"`  // Number of assertions that passed
-	AssertionsFailed  int               `json:"assertionsFailed"`  // Number of assertions that failed
-	ErrorMessage      string            `json:"errorMessage,omitempty"` // Error message if processing failed
+	SpecOperationID  string             `json:"specOperationId"`
+	Status           AlignmentStatus    `json:"status"`
+	Details          []ValidationDetail `json:"details"`
+	ExecutionTime    int64              `json:"executionTime"`          // Duration in nanoseconds
+	StartTime        int64              `json:"startTime"`              // Start timestamp in Unix nanoseconds
+	EndTime          int64              `json:"endTime"`                // End timestamp in Unix nanoseconds
+	MatchedSpans     []string           `json:"matchedSpans"`           // IDs of spans that matched this spec
+	AssertionsTotal  int                `json:"assertionsTotal"`        // Total number of assertions evaluated
+	AssertionsPassed int                `json:"assertionsPassed"`       // Number of assertions that passed
+	AssertionsFailed int                `json:"assertionsFailed"`       // Number of assertions that failed
+	ErrorMessage     string             `json:"errorMessage,omitempty"` // Error message if processing failed
 }
 
 // AlignmentStatus represents the status of an alignment result
@@ -299,7 +328,7 @@ const (
 
 // ValidationDetail provides detailed information about a specific validation
 type ValidationDetail struct {
-	Type          string                 `json:"type"`                    // "precondition" | "postcondition"
+	Type          string                 `json:"type"` // "precondition" | "postcondition"
 	Expression    string                 `json:"expression"`
 	Expected      interface{}            `json:"expected"`
 	Actual        interface{}            `json:"actual"`
@@ -335,18 +364,18 @@ func (ar *AlignmentReport) updateSummary() {
 		case StatusSkipped:
 			skipped++
 		}
-		
+
 		totalExecutionTime += result.ExecutionTime
 		totalAssertions += result.AssertionsTotal
 		failedAssertions += result.AssertionsFailed
 	}
 
 	ar.Summary = AlignmentSummary{
-		Total:           total,
-		Success:         success,
-		Failed:          failed,
-		Skipped:         skipped,
-		TotalAssertions: totalAssertions,
+		Total:            total,
+		Success:          success,
+		Failed:           failed,
+		Skipped:          skipped,
+		TotalAssertions:  totalAssertions,
 		FailedAssertions: failedAssertions,
 	}
 
@@ -398,7 +427,7 @@ func (as AlignmentStatus) IsValid() bool {
 // AddValidationDetail adds a validation detail to the alignment result
 func (ar *AlignmentResult) AddValidationDetail(detail ValidationDetail) {
 	ar.Details = append(ar.Details, detail)
-	
+
 	// Update status based on validation details
 	ar.updateStatus()
 }
@@ -423,9 +452,9 @@ func (ar *AlignmentResult) updateStatus() {
 		if detail.Type == "matching" {
 			continue
 		}
-		
+
 		totalAssertions++
-		
+
 		// Check if this assertion passed or failed
 		if detail.IsPassed() {
 			passedAssertions++

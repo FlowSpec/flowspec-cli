@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package parser
 
 import (
@@ -11,7 +25,7 @@ import (
 
 func TestNewGoFileParser(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	assert.NotNil(t, parser)
 	assert.NotNil(t, parser.BaseFileParser)
 	assert.Equal(t, LanguageGo, parser.GetLanguage())
@@ -19,7 +33,7 @@ func TestNewGoFileParser(t *testing.T) {
 
 func TestGoFileParser_CanParse(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	testCases := []struct {
 		filename string
 		expected bool
@@ -34,7 +48,7 @@ func TestGoFileParser_CanParse(t *testing.T) {
 		{"test.txt", false},
 		{"test", false},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.filename, func(t *testing.T) {
 			result := parser.CanParse(tc.filename)
@@ -45,11 +59,11 @@ func TestGoFileParser_CanParse(t *testing.T) {
 
 func TestGoFileParser_ParseFile_BasicAnnotation(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	// Create temporary Go file with basic ServiceSpec annotation
 	tmpDir := t.TempDir()
 	goFile := filepath.Join(tmpDir, "user_service.go")
-	
+
 	content := `package service
 
 import (
@@ -84,26 +98,26 @@ type UserService struct {
 func (s *UserService) CreateUser(ctx context.Context, request *CreateUserRequest) (*User, error) {
 	return s.repo.Save(ctx, models.NewUser(request))
 }`
-	
+
 	err := os.WriteFile(goFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(goFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "createUser", spec.OperationID)
 	assert.Equal(t, "Create a new user account", spec.Description)
 	assert.Equal(t, goFile, spec.SourceFile)
 	assert.Equal(t, 12, spec.LineNumber) // Line where @ServiceSpec appears
-	
+
 	// Verify preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "email_validation")
 	assert.Contains(t, spec.Preconditions, "password_strength")
-	
+
 	// Verify postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "successful_creation")
@@ -111,11 +125,11 @@ func (s *UserService) CreateUser(ctx context.Context, request *CreateUserRequest
 
 func TestGoFileParser_ParseFile_MultiLineComment(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	// Create temporary Go file with multi-line comment ServiceSpec annotation
 	tmpDir := t.TempDir()
 	goFile := filepath.Join(tmpDir, "order_service.go")
-	
+
 	content := `package service
 
 /*
@@ -124,7 +138,7 @@ func TestGoFileParser_ParseFile_MultiLineComment(t *testing.T) {
  * description: "Process customer order"
  * preconditions:
  *   "request.body.customerId": {"!=": null}
- *   "request.body.items": {">=": 1}
+ *   "request.body.items": {">= ": 1}
  * postconditions:
  *   "response.status": {"==": 200}
  *   "response.body.orderId": {"!=": null}
@@ -132,25 +146,25 @@ func TestGoFileParser_ParseFile_MultiLineComment(t *testing.T) {
 func ProcessOrder(request *OrderRequest) (*OrderResponse, error) {
 	return orderProcessor.Process(request)
 }`
-	
+
 	err := os.WriteFile(goFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(goFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "processOrder", spec.OperationID)
 	assert.Equal(t, "Process customer order", spec.Description)
 	assert.Equal(t, goFile, spec.SourceFile)
-	
+
 	// Verify preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "request.body.customerId")
 	assert.Contains(t, spec.Preconditions, "request.body.items")
-	
+
 	// Verify postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "response.status")
@@ -159,11 +173,11 @@ func ProcessOrder(request *OrderRequest) (*OrderResponse, error) {
 
 func TestGoFileParser_ParseFile_MultipleAnnotations(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	// Create temporary Go file with multiple ServiceSpec annotations
 	tmpDir := t.TempDir()
 	goFile := filepath.Join(tmpDir, "user_handler.go")
-	
+
 	content := `package handler
 
 import (
@@ -212,23 +226,23 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	// Implementation
 	c.JSON(http.StatusOK, gin.H{"status": "updated"})
 }`
-	
+
 	err := os.WriteFile(goFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(goFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 3)
-	
+
 	// Verify first spec
 	assert.Equal(t, "createUser", specs[0].OperationID)
 	assert.Equal(t, "Create a new user", specs[0].Description)
-	
+
 	// Verify second spec
 	assert.Equal(t, "getUser", specs[1].OperationID)
 	assert.Equal(t, "Retrieve user by ID", specs[1].Description)
-	
+
 	// Verify third spec
 	assert.Equal(t, "updateUser", specs[2].OperationID)
 	assert.Equal(t, "Update existing user", specs[2].Description)
@@ -236,11 +250,11 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 
 func TestGoFileParser_ParseFile_ComplexJSONLogicExpressions(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	// Create temporary Go file with complex JSONLogic expressions
 	tmpDir := t.TempDir()
 	goFile := filepath.Join(tmpDir, "payment_service.go")
-	
+
 	content := `package service
 
 import "context"
@@ -279,37 +293,37 @@ func (s *PaymentService) ProcessPayment(ctx context.Context, request *PaymentReq
 	response, err := s.processor.Process(ctx, request)
 	return response, err
 }`
-	
+
 	err := os.WriteFile(goFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(goFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "processPayment", spec.OperationID)
 	assert.Equal(t, "Process payment with complex validation", spec.Description)
-	
+
 	// Verify complex preconditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Contains(t, spec.Preconditions, "amount_validation")
 	assert.Contains(t, spec.Preconditions, "payment_method_validation")
-	
+
 	// Verify the structure of complex expressions
 	amountValidation, ok := spec.Preconditions["amount_validation"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, amountValidation, "and")
-	
+
 	paymentMethodValidation, ok := spec.Preconditions["payment_method_validation"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, paymentMethodValidation, "or")
-	
+
 	// Verify complex postconditions
 	assert.NotNil(t, spec.Postconditions)
 	assert.Contains(t, spec.Postconditions, "success_response")
-	
+
 	successResponse, ok := spec.Postconditions["success_response"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Contains(t, successResponse, "and")
@@ -317,11 +331,11 @@ func (s *PaymentService) ProcessPayment(ctx context.Context, request *PaymentReq
 
 func TestGoFileParser_ParseFile_MinimalAnnotation(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	// Create temporary Go file with minimal ServiceSpec annotation (no conditions)
 	tmpDir := t.TempDir()
 	goFile := filepath.Join(tmpDir, "health_service.go")
-	
+
 	content := `package service
 
 // @ServiceSpec
@@ -330,19 +344,19 @@ func TestGoFileParser_ParseFile_MinimalAnnotation(t *testing.T) {
 func HealthCheck() map[string]string {
 	return map[string]string{"status": "OK"}
 }`
-	
+
 	err := os.WriteFile(goFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(goFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 1)
-	
+
 	spec := specs[0]
 	assert.Equal(t, "healthCheck", spec.OperationID)
 	assert.Equal(t, "Health check endpoint", spec.Description)
-	
+
 	// Should have empty but non-nil conditions
 	assert.NotNil(t, spec.Preconditions)
 	assert.Empty(t, spec.Preconditions)
@@ -352,7 +366,7 @@ func HealthCheck() map[string]string {
 
 func TestGoFileParser_ParseFile_ErrorHandling(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	testCases := []struct {
 		name        string
 		content     string
@@ -396,17 +410,17 @@ func test() {}`,
 			errorMsg:    "preconditions must be a map/object",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			goFile := filepath.Join(tmpDir, "test.go")
-			
+
 			err := os.WriteFile(goFile, []byte(tc.content), 0644)
 			require.NoError(t, err)
-			
+
 			specs, errors := parser.ParseFile(goFile)
-			
+
 			if tc.expectError {
 				assert.Empty(t, specs)
 				assert.NotEmpty(t, errors)
@@ -421,7 +435,7 @@ func test() {}`,
 
 func TestGoFileParser_ParseFile_EdgeCases(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	testCases := []struct {
 		name     string
 		content  string
@@ -470,17 +484,17 @@ func test2() {}`,
 			expected: 2,
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			goFile := filepath.Join(tmpDir, "test.go")
-			
+
 			err := os.WriteFile(goFile, []byte(tc.content), 0644)
 			require.NoError(t, err)
-			
+
 			specs, errors := parser.ParseFile(goFile)
-			
+
 			assert.Len(t, specs, tc.expected)
 			assert.Empty(t, errors) // No errors expected for these cases
 		})
@@ -489,9 +503,9 @@ func test2() {}`,
 
 func TestGoFileParser_ParseFile_FileNotFound(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	specs, errors := parser.ParseFile("/non/existent/file.go")
-	
+
 	assert.Empty(t, specs)
 	assert.Len(t, errors, 1)
 	assert.Contains(t, errors[0].Message, "failed to open file")
@@ -499,11 +513,11 @@ func TestGoFileParser_ParseFile_FileNotFound(t *testing.T) {
 
 func TestGoFileParser_ParseFile_RealWorldExample(t *testing.T) {
 	parser := NewGoFileParser()
-	
+
 	// Create a realistic Go service file
 	tmpDir := t.TempDir()
 	goFile := filepath.Join(tmpDir, "user_management_service.go")
-	
+
 	content := `package service
 
 import (
@@ -542,7 +556,7 @@ func NewUserManagementService(userRepo repository.UserRepository, hasher Passwor
 //   "password_strength": {
 //     "and": [
 //       {"!=": [{"var": "request.body.password"}, null]},
-//       {">=": [{"strlen": [{"var": "request.body.password"}]}, 8]},
+//       {">": [{"strlen": [{"var": "request.body.password"}]}, 8]},
 //       {"regex": [{"var": "request.body.password"}, ".*[A-Z].*"]},
 //       {"regex": [{"var": "request.body.password"}, ".*[0-9].*"]}
 //     ]
@@ -628,34 +642,34 @@ func (s *UserManagementService) GetUserProfile(ctx context.Context, userID strin
 		CreatedAt: user.CreatedAt,
 	}, nil
 }`
-	
+
 	err := os.WriteFile(goFile, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	specs, errors := parser.ParseFile(goFile)
-	
+
 	assert.Empty(t, errors)
 	assert.Len(t, specs, 2)
-	
+
 	// Verify first spec (createUserAccount)
 	createUserSpec := specs[0]
 	assert.Equal(t, "createUserAccount", createUserSpec.OperationID)
 	assert.Equal(t, "Create a new user account with comprehensive validation", createUserSpec.Description)
-	
+
 	// Verify complex preconditions
 	assert.Contains(t, createUserSpec.Preconditions, "email_validation")
 	assert.Contains(t, createUserSpec.Preconditions, "password_strength")
 	assert.Contains(t, createUserSpec.Preconditions, "unique_email")
-	
+
 	// Verify complex postconditions
 	assert.Contains(t, createUserSpec.Postconditions, "successful_creation")
 	assert.Contains(t, createUserSpec.Postconditions, "password_security")
-	
+
 	// Verify second spec (getUserProfile)
 	getUserSpec := specs[1]
 	assert.Equal(t, "getUserProfile", getUserSpec.OperationID)
 	assert.Equal(t, "Retrieve user profile by ID", getUserSpec.Description)
-	
+
 	assert.Contains(t, getUserSpec.Preconditions, "valid_user_id")
 	assert.Contains(t, getUserSpec.Preconditions, "user_exists")
 	assert.Contains(t, getUserSpec.Postconditions, "successful_retrieval")
@@ -666,10 +680,10 @@ func TestGoFileParser_Integration_WithSpecParser(t *testing.T) {
 	specParser := NewSpecParser()
 	goParser := NewGoFileParser()
 	specParser.RegisterFileParser(LanguageGo, goParser)
-	
+
 	// Create test directory with Go files
 	tmpDir := t.TempDir()
-	
+
 	// Create first Go file
 	goFile1 := filepath.Join(tmpDir, "service1.go")
 	content1 := `// @ServiceSpec
@@ -678,7 +692,7 @@ func TestGoFileParser_Integration_WithSpecParser(t *testing.T) {
 func Service1Operation() {}`
 	err := os.WriteFile(goFile1, []byte(content1), 0644)
 	require.NoError(t, err)
-	
+
 	// Create second Go file
 	goFile2 := filepath.Join(tmpDir, "service2.go")
 	content2 := `// @ServiceSpec
@@ -687,15 +701,15 @@ func Service1Operation() {}`
 func Service2Operation() {}`
 	err = os.WriteFile(goFile2, []byte(content2), 0644)
 	require.NoError(t, err)
-	
+
 	// Parse the directory
 	result, err := specParser.ParseFromSource(tmpDir)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.Specs, 2)
 	assert.Empty(t, result.Errors)
-	
+
 	// Verify both specs were parsed
 	operationIds := []string{result.Specs[0].OperationID, result.Specs[1].OperationID}
 	assert.Contains(t, operationIds, "service1Operation")

@@ -1,0 +1,34 @@
+{
+  "summary": {
+    "total": 4,
+    "success": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  "results": [
+    {
+      "specOperationId": "createUser",
+      "status": "SUCCESS",
+      "details": [],
+      "executionTime": "15ms"
+    },
+    {
+      "specOperationId": "getUser",
+      "status": "SUCCESS",
+      "details": [],
+      "executionTime": "8ms"
+    },
+    {
+      "specOperationId": "updateUser",
+      "status": "SUCCESS",
+      "details": [],
+      "executionTime": "12ms"
+    },
+    {
+      "specOperationId": "deleteUser",
+      "status": "SUCCESS",
+      "details": [],
+      "executionTime": "5ms"
+    }
+  ]
+}

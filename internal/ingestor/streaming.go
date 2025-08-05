@@ -1,3 +1,17 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package ingestor
 
 import (
@@ -9,33 +23,33 @@ import (
 	"sync"
 	"time"
 
-	"flowspec-cli/internal/models"
+	"github.com/flowspec/flowspec-cli/internal/models"
 )
 
 // StreamingIngestor provides streaming ingestion capabilities for large trace files
 type StreamingIngestor struct {
 	*DefaultTraceIngestor
-	chunkSize       int
-	maxMemoryUsage  int64
+	chunkSize        int
+	maxMemoryUsage   int64
 	progressCallback func(processed, total int64)
-	mu              sync.RWMutex
+	mu               sync.RWMutex
 }
 
 // StreamingConfig holds configuration for streaming ingestion
 type StreamingConfig struct {
-	ChunkSize        int                           // Size of each processing chunk
-	MaxMemoryUsage   int64                         // Maximum memory usage in bytes
+	ChunkSize        int                          // Size of each processing chunk
+	MaxMemoryUsage   int64                        // Maximum memory usage in bytes
 	ProgressCallback func(processed, total int64) // Progress callback function
-	EnableGC         bool                          // Enable aggressive garbage collection
-	GCInterval       time.Duration                 // Interval for garbage collection
+	EnableGC         bool                         // Enable aggressive garbage collection
+	GCInterval       time.Duration                // Interval for garbage collection
 }
 
 // ChunkProcessor processes individual chunks of trace data
 type ChunkProcessor struct {
-	spans       []*models.Span
-	errors      []error
-	memoryUsed  int64
-	mu          sync.Mutex
+	spans      []*models.Span
+	errors     []error
+	memoryUsed int64
+	mu         sync.Mutex
 }
 
 // MemoryMonitor monitors and controls memory usage during ingestion
@@ -58,7 +72,7 @@ type ProgressTracker struct {
 // DefaultStreamingConfig returns a default streaming configuration
 func DefaultStreamingConfig() *StreamingConfig {
 	return &StreamingConfig{
-		ChunkSize:      1024 * 1024, // 1MB chunks
+		ChunkSize:      1024 * 1024,       // 1MB chunks
 		MaxMemoryUsage: 500 * 1024 * 1024, // 500MB max memory
 		EnableGC:       true,
 		GCInterval:     5 * time.Second,
@@ -70,10 +84,10 @@ func NewStreamingIngestor(config *StreamingConfig) *StreamingIngestor {
 	if config == nil {
 		config = DefaultStreamingConfig()
 	}
-	
+
 	baseIngestor := NewTraceIngestor()
 	baseIngestor.SetMemoryLimit(config.MaxMemoryUsage / (1024 * 1024)) // Convert to MB
-	
+
 	return &StreamingIngestor{
 		DefaultTraceIngestor: baseIngestor,
 		chunkSize:            config.ChunkSize,
@@ -103,29 +117,29 @@ func NewProgressTracker(totalBytes int64, callback func(processed, total int64))
 func (si *StreamingIngestor) IngestFromReaderStreaming(reader io.Reader, totalSize int64) (*models.TraceData, error) {
 	// Initialize memory monitor
 	monitor := NewMemoryMonitor(si.maxMemoryUsage)
-	
+
 	// Initialize progress tracker
 	var tracker *ProgressTracker
 	if si.progressCallback != nil {
 		tracker = NewProgressTracker(totalSize, si.progressCallback)
 	}
-	
+
 	// Start memory monitoring goroutine
 	stopMonitoring := make(chan bool)
 	go si.monitorMemory(monitor, stopMonitoring)
 	defer func() { stopMonitoring <- true }()
-	
+
 	// Process in chunks
 	traceData, err := si.processInChunks(reader, monitor, tracker)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Build span tree
 	if err := traceData.BuildSpanTree(); err != nil {
 		return nil, fmt.Errorf("failed to build span tree: %w", err)
 	}
-	
+
 	return traceData, nil
 }
 
@@ -133,29 +147,29 @@ func (si *StreamingIngestor) IngestFromReaderStreaming(reader io.Reader, totalSi
 func (si *StreamingIngestor) processInChunks(reader io.Reader, monitor *MemoryMonitor, tracker *ProgressTracker) (*models.TraceData, error) {
 	// Use a buffered reader for efficient reading
 	bufferedReader := bufio.NewReaderSize(reader, si.chunkSize)
-	
+
 	// Read the entire JSON structure first to understand the format
 	// For OTLP JSON, we need to parse the complete structure
 	data, err := io.ReadAll(bufferedReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read trace data: %w", err)
 	}
-	
+
 	// Update progress
 	if tracker != nil {
 		tracker.UpdateProgress(int64(len(data)))
 	}
-	
+
 	// Check memory usage before processing
 	if err := monitor.CheckMemoryLimit(int64(len(data))); err != nil {
 		return nil, err
 	}
-	
+
 	// Parse JSON in chunks if possible, otherwise parse normally
 	if len(data) > si.chunkSize*2 { // Use chunked processing for files larger than 2x chunk size
 		return si.parseJSONInChunks(data, monitor, tracker)
 	}
-	
+
 	// For smaller files, use normal parsing
 	return si.parseJSONNormally(data, monitor)
 }
@@ -174,21 +188,21 @@ func (si *StreamingIngestor) parseJSONWithMemoryOptimization(data []byte, monito
 	if err := json.Unmarshal(data, &otlpTrace); err != nil {
 		return nil, fmt.Errorf("failed to parse OTLP JSON: %w", err)
 	}
-	
+
 	// Process resource spans one by one to minimize memory usage
 	traceData := &models.TraceData{
 		Spans: make(map[string]*models.Span),
 	}
-	
+
 	totalResourceSpans := len(otlpTrace.ResourceSpans)
 	processedResourceSpans := 0
-	
+
 	for _, resourceSpan := range otlpTrace.ResourceSpans {
 		// Check memory before processing each resource span
 		if err := monitor.CheckMemoryLimit(0); err != nil {
 			return nil, err
 		}
-		
+
 		// Process scope spans
 		for _, scopeSpan := range resourceSpan.ScopeSpans {
 			// Process spans in batches
@@ -198,30 +212,30 @@ func (si *StreamingIngestor) parseJSONWithMemoryOptimization(data []byte, monito
 				if end > len(scopeSpan.Spans) {
 					end = len(scopeSpan.Spans)
 				}
-				
+
 				// Process batch
 				batch := scopeSpan.Spans[i:end]
 				if err := si.processBatch(batch, traceData, monitor); err != nil {
 					return nil, err
 				}
-				
+
 				// Update progress
 				if tracker != nil {
-					progress := float64(processedResourceSpans)/float64(totalResourceSpans) + 
+					progress := float64(processedResourceSpans)/float64(totalResourceSpans) +
 						float64(end)/float64(len(scopeSpan.Spans))/float64(totalResourceSpans)
 					tracker.UpdateProgressPercent(progress)
 				}
-				
+
 				// Force garbage collection periodically
 				if i%500 == 0 {
 					runtime.GC()
 				}
 			}
 		}
-		
+
 		processedResourceSpans++
 	}
-	
+
 	return traceData, nil
 }
 
@@ -231,20 +245,20 @@ func (si *StreamingIngestor) parseJSONNormally(data []byte, monitor *MemoryMonit
 	if err := monitor.CheckMemoryLimit(int64(len(data))); err != nil {
 		return nil, err
 	}
-	
+
 	// Parse OTLP JSON
 	var otlpTrace OTLPTrace
 	if err := json.Unmarshal(data, &otlpTrace); err != nil {
 		return nil, fmt.Errorf("failed to parse OTLP JSON: %w", err)
 	}
-	
+
 	// Convert to internal format
 	metrics := NewIngestMetrics()
 	traceData, err := si.convertOTLPToTraceData(otlpTrace, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert OTLP data: %w", err)
 	}
-	
+
 	return traceData, nil
 }
 
@@ -256,15 +270,15 @@ func (si *StreamingIngestor) processBatch(batch []OTLPSpan, traceData *models.Tr
 		if err != nil {
 			continue // Skip invalid spans
 		}
-		
+
 		// Set trace ID if not set
 		if traceData.TraceID == "" {
 			traceData.TraceID = span.TraceID
 		}
-		
+
 		// Add to spans map
 		traceData.Spans[span.SpanID] = span
-		
+
 		// Check memory usage periodically
 		if len(traceData.Spans)%100 == 0 {
 			if err := monitor.CheckMemoryLimit(0); err != nil {
@@ -272,7 +286,7 @@ func (si *StreamingIngestor) processBatch(batch []OTLPSpan, traceData *models.Tr
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -280,14 +294,14 @@ func (si *StreamingIngestor) processBatch(batch []OTLPSpan, traceData *models.Tr
 func (si *StreamingIngestor) monitorMemory(monitor *MemoryMonitor, stop <-chan bool) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-stop:
 			return
 		case <-ticker.C:
 			monitor.UpdateMemoryUsage()
-			
+
 			// Trigger GC if memory usage is high
 			if monitor.ShouldTriggerGC() {
 				runtime.GC()
@@ -302,16 +316,16 @@ func (si *StreamingIngestor) monitorMemory(monitor *MemoryMonitor, stop <-chan b
 func (mm *MemoryMonitor) CheckMemoryLimit(additionalBytes int64) error {
 	mm.mu.RLock()
 	defer mm.mu.RUnlock()
-	
+
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	currentUsage := int64(m.Alloc)
 	if currentUsage+additionalBytes > mm.maxMemory {
-		return fmt.Errorf("memory usage would exceed limit: current=%d, additional=%d, limit=%d", 
+		return fmt.Errorf("memory usage would exceed limit: current=%d, additional=%d, limit=%d",
 			currentUsage, additionalBytes, mm.maxMemory)
 	}
-	
+
 	return nil
 }
 
@@ -319,7 +333,7 @@ func (mm *MemoryMonitor) CheckMemoryLimit(additionalBytes int64) error {
 func (mm *MemoryMonitor) UpdateMemoryUsage() {
 	mm.mu.Lock()
 	defer mm.mu.Unlock()
-	
+
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	mm.currentMemory = int64(m.Alloc)
@@ -329,7 +343,7 @@ func (mm *MemoryMonitor) UpdateMemoryUsage() {
 func (mm *MemoryMonitor) ShouldTriggerGC() bool {
 	mm.mu.RLock()
 	defer mm.mu.RUnlock()
-	
+
 	return float64(mm.currentMemory)/float64(mm.maxMemory) > mm.gcThreshold
 }
 
@@ -353,9 +367,9 @@ func (mm *MemoryMonitor) GetMemoryUsagePercent() float64 {
 func (pt *ProgressTracker) UpdateProgress(processedBytes int64) {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
-	
+
 	pt.processedBytes = processedBytes
-	
+
 	if pt.callback != nil {
 		pt.callback(pt.processedBytes, pt.totalBytes)
 	}
@@ -365,9 +379,9 @@ func (pt *ProgressTracker) UpdateProgress(processedBytes int64) {
 func (pt *ProgressTracker) UpdateProgressPercent(percent float64) {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
-	
+
 	pt.processedBytes = int64(float64(pt.totalBytes) * percent)
-	
+
 	if pt.callback != nil {
 		pt.callback(pt.processedBytes, pt.totalBytes)
 	}
@@ -377,32 +391,32 @@ func (pt *ProgressTracker) UpdateProgressPercent(percent float64) {
 func (pt *ProgressTracker) GetProgress() (processed, total int64, percent float64, elapsed time.Duration) {
 	pt.mu.RLock()
 	defer pt.mu.RUnlock()
-	
+
 	processed = pt.processedBytes
 	total = pt.totalBytes
 	if total > 0 {
 		percent = float64(processed) / float64(total) * 100
 	}
 	elapsed = time.Since(pt.startTime)
-	
+
 	return
 }
 
 // GetETA returns estimated time of arrival
 func (pt *ProgressTracker) GetETA() time.Duration {
 	processed, total, _, elapsed := pt.GetProgress()
-	
+
 	if processed == 0 {
 		return 0
 	}
-	
+
 	rate := float64(processed) / elapsed.Seconds()
 	remaining := total - processed
-	
+
 	if rate > 0 {
 		return time.Duration(float64(remaining)/rate) * time.Second
 	}
-	
+
 	return 0
 }
 
@@ -420,7 +434,7 @@ func NewChunkProcessor() *ChunkProcessor {
 func (cp *ChunkProcessor) AddSpan(span *models.Span) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
-	
+
 	cp.spans = append(cp.spans, span)
 	cp.memoryUsed += cp.estimateSpanMemory(span)
 }
@@ -429,7 +443,7 @@ func (cp *ChunkProcessor) AddSpan(span *models.Span) {
 func (cp *ChunkProcessor) AddError(err error) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
-	
+
 	cp.errors = append(cp.errors, err)
 }
 
@@ -437,7 +451,7 @@ func (cp *ChunkProcessor) AddError(err error) {
 func (cp *ChunkProcessor) GetResults() ([]*models.Span, []error, int64) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
-	
+
 	return cp.spans, cp.errors, cp.memoryUsed
 }
 
@@ -445,7 +459,7 @@ func (cp *ChunkProcessor) GetResults() ([]*models.Span, []error, int64) {
 func (cp *ChunkProcessor) Clear() {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
-	
+
 	cp.spans = cp.spans[:0]
 	cp.errors = cp.errors[:0]
 	cp.memoryUsed = 0
@@ -455,15 +469,15 @@ func (cp *ChunkProcessor) Clear() {
 func (cp *ChunkProcessor) estimateSpanMemory(span *models.Span) int64 {
 	// Rough estimation of span memory usage
 	baseSize := int64(200) // Base struct size
-	
+
 	// Add string fields
 	baseSize += int64(len(span.SpanID))
 	baseSize += int64(len(span.TraceID))
 	baseSize += int64(len(span.ParentID))
 	baseSize += int64(len(span.Name))
-	baseSize += int64(len(span.Status.Code))
+	baseSize += 4 // StatusCode is an int, roughly 4 bytes
 	baseSize += int64(len(span.Status.Message))
-	
+
 	// Add attributes (rough estimation)
 	for key, value := range span.Attributes {
 		baseSize += int64(len(key))
@@ -473,7 +487,7 @@ func (cp *ChunkProcessor) estimateSpanMemory(span *models.Span) int64 {
 			baseSize += 50 // Rough estimate for other types
 		}
 	}
-	
+
 	// Add events
 	for _, event := range span.Events {
 		baseSize += int64(len(event.Name))
@@ -486,7 +500,7 @@ func (cp *ChunkProcessor) estimateSpanMemory(span *models.Span) int64 {
 			}
 		}
 	}
-	
+
 	return baseSize
 }
 
@@ -496,7 +510,7 @@ func (cp *ChunkProcessor) estimateSpanMemory(span *models.Span) int64 {
 func OptimizeMemoryUsage() {
 	// Force garbage collection
 	runtime.GC()
-	
+
 	// Return memory to OS
 	runtime.GC()
 	runtime.GC() // Call twice for better effect
@@ -506,15 +520,15 @@ func OptimizeMemoryUsage() {
 func GetMemoryStats() map[string]interface{} {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	return map[string]interface{}{
-		"alloc":         m.Alloc,         // Currently allocated bytes
-		"total_alloc":   m.TotalAlloc,    // Total allocated bytes (cumulative)
-		"sys":           m.Sys,           // System memory obtained from OS
-		"num_gc":        m.NumGC,         // Number of GC cycles
+		"alloc":           m.Alloc,         // Currently allocated bytes
+		"total_alloc":     m.TotalAlloc,    // Total allocated bytes (cumulative)
+		"sys":             m.Sys,           // System memory obtained from OS
+		"num_gc":          m.NumGC,         // Number of GC cycles
 		"gc_cpu_fraction": m.GCCPUFraction, // Fraction of CPU time used by GC
-		"heap_alloc":    m.HeapAlloc,     // Heap allocated bytes
-		"heap_sys":      m.HeapSys,       // Heap system bytes
-		"heap_objects":  m.HeapObjects,   // Number of heap objects
+		"heap_alloc":      m.HeapAlloc,     // Heap allocated bytes
+		"heap_sys":        m.HeapSys,       // Heap system bytes
+		"heap_objects":    m.HeapObjects,   // Number of heap objects
 	}
 }

@@ -1,43 +1,43 @@
 # Pull Request
 
-## 变更描述
-简洁地描述此 PR 中的变更。
+## Description of Change
+Briefly describe the changes in this PR.
 
-## 变更类型
-请删除不相关的选项：
-- [ ] Bug 修复（不破坏现有功能的变更）
-- [ ] 新功能（添加功能的不破坏性变更）
-- [ ] 破坏性变更（会导致现有功能无法正常工作的修复或功能）
-- [ ] 文档更新
-- [ ] 代码重构
-- [ ] 性能改进
-- [ ] 测试改进
+## Change Type
+Please delete options that are not relevant:
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Code refactoring
+- [ ] Performance improvement
+- [ ] Test improvement
 
-## 相关 Issue
-修复 # (issue 编号)
+## Related Issue
+Fixes # (issue number)
 
-## 测试
-描述您运行的测试来验证您的更改：
-- [ ] 单元测试通过
-- [ ] 集成测试通过
-- [ ] 手动测试完成
+## Testing
+Describe the tests you ran to verify your changes:
+- [ ] Unit tests passed
+- [ ] Integration tests passed
+- [ ] Manual testing completed
 
-## 测试配置
-- Go 版本：
-- 操作系统：
+## Test Configuration
+- Go Version:
+- Operating System:
 
-## 检查清单
-- [ ] 我的代码遵循此项目的代码风格
-- [ ] 我已经对我的代码进行了自我审查
-- [ ] 我已经对我的代码进行了注释，特别是在难以理解的区域
-- [ ] 我已经对我的更改进行了相应的文档更改
-- [ ] 我的更改不会产生新的警告
-- [ ] 我已经添加了证明我的修复有效或我的功能工作的测试
-- [ ] 新的和现有的单元测试在我的更改下都通过了
-- [ ] 任何依赖的更改都已合并并发布
+## Checklist
+- [ ] My code follows the style guidelines of this project
+- [ ] I have performed a self-review of my own code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] New and existing unit tests pass with my changes
+- [ ] Any dependent changes have been merged and published
 
-## 屏幕截图（如果适用）
-添加屏幕截图以帮助解释您的更改。
+## Screenshots (if applicable)
+Add screenshots to help explain your changes.
 
-## 附加说明
-添加关于此 PR 的任何其他说明。
+## Additional Notes
+Add any other notes about this PR.

@@ -1,0 +1,48 @@
+{
+  "resourceSpans": [{
+    "resource": {
+      "attributes": [
+        {"key": "service.name", "value": {"stringValue": "user-service"}},
+        {"key": "service.version", "value": {"stringValue": "1.0.0"}}
+      ]
+    },
+    "scopeSpans": [{
+      "scope": {
+        "name": "user-service-tracer",
+        "version": "1.0.0"
+      },
+      "spans": [
+        {
+          "traceId": "abcdef1234567890abcdef1234567890",
+          "spanId": "1111222233334444",
+          "name": "createUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1640995300000000000",
+          "endTimeUnixNano": "1640995300100000000",
+          "status": {
+            "code": "STATUS_CODE_ERROR",
+            "message": "Invalid input: password too short"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "POST"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users"}},
+            {"key": "http.status_code", "value": {"intValue": 400}},
+            {"key": "request.body.email", "value": {"stringValue": "invalid-email"}},
+            {"key": "request.body.name", "value": {"stringValue": "Test User"}},
+            {"key": "request.body.password.length", "value": {"intValue": 5}},
+            {"key": "response.body.error", "value": {"stringValue": "Password must be at least 8 characters"}}
+          ],
+          "events": [
+            {
+              "timeUnixNano": "1640995300050000000",
+              "name": "validation.failed",
+              "attributes": [
+                {"key": "validation.error", "value": {"stringValue": "password_too_short"}}
+              ]
+            }
+          ]
+        }
+      ]
+    }]
+  }]
+}
