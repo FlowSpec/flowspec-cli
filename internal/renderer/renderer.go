@@ -23,6 +23,13 @@ import (
 	"github.com/flowspec/flowspec-cli/internal/models"
 )
 
+// Icon constants for consistent display
+const (
+	IconSuccess = "✅"
+	IconFailed  = "❌"
+	IconSkipped = "⏭️"
+)
+
 // ReportRenderer defines the interface for rendering alignment reports
 type ReportRenderer interface {
 	RenderHuman(report *models.AlignmentReport) (string, error)
@@ -81,8 +88,8 @@ func (r *DefaultReportRenderer) RenderHuman(report *models.AlignmentReport) (str
 		r.getColor("bold"), report.Summary.Total, r.getColor("reset")))
 
 	// Success count with green color
-	output.WriteString(fmt.Sprintf("  %s✅ 成功: %s%d%s 个%s",
-		r.getColor("green"), r.getColor("bold"), report.Summary.Success, r.getColor("reset"), r.getColor("reset")))
+	output.WriteString(fmt.Sprintf("  %s%s 成功: %s%d%s 个%s",
+		r.getColor("green"), IconSuccess, r.getColor("bold"), report.Summary.Success, r.getColor("reset"), r.getColor("reset")))
 	if report.Summary.Total > 0 {
 		successRate := float64(report.Summary.Success) / float64(report.Summary.Total) * 100
 		output.WriteString(fmt.Sprintf(" (%.1f%%)", successRate))
@@ -183,7 +190,7 @@ func (r *DefaultReportRenderer) RenderHuman(report *models.AlignmentReport) (str
 
 	// Render successful results
 	if len(successResults) > 0 {
-		r.writeColoredSubsection(&output, fmt.Sprintf("✅ 成功的验证 (%d 个)", len(successResults)))
+		r.writeColoredSubsection(&output, fmt.Sprintf("%s 成功的验证 (%d 个)", IconSuccess, len(successResults)))
 		for i, result := range successResults {
 			r.renderResultHuman(&output, result, i+1, len(successResults))
 			if i < len(successResults)-1 {
@@ -220,8 +227,8 @@ func (r *DefaultReportRenderer) RenderHuman(report *models.AlignmentReport) (str
 			output.WriteString("  • 考虑更新 ServiceSpec 规约以匹配新的服务行为\n")
 		}
 	} else {
-		output.WriteString(fmt.Sprintf("%s验证结果: ✅ 成功%s (所有断言通过)\n",
-			r.getColor("green"), r.getColor("reset")))
+		output.WriteString(fmt.Sprintf("%s验证结果: %s 成功%s (所有断言通过)\n",
+			r.getColor("green"), IconSuccess, r.getColor("reset")))
 
 		if report.Summary.Total > 0 {
 			output.WriteString(fmt.Sprintf("\n%s🎉 恭喜！%s 所有 %d 个 ServiceSpec 都符合预期规约。\n",
@@ -324,10 +331,10 @@ func (r *DefaultReportRenderer) renderValidationDetailsHuman(output *strings.Bui
 			}
 		}
 
-		statusIcon := "✅"
+		statusIcon := IconSuccess
 		statusColor := r.getColor("green")
 		if passedCount < len(preconditions) {
-			statusIcon = "❌"
+			statusIcon = IconFailed
 			statusColor = r.getColor("red")
 		}
 
@@ -349,10 +356,10 @@ func (r *DefaultReportRenderer) renderValidationDetailsHuman(output *strings.Bui
 			}
 		}
 
-		statusIcon := "✅"
+		statusIcon := IconSuccess
 		statusColor := r.getColor("green")
 		if passedCount < len(postconditions) {
-			statusIcon = "❌"
+			statusIcon = IconFailed
 			statusColor = r.getColor("red")
 		}
 
@@ -368,10 +375,10 @@ func (r *DefaultReportRenderer) renderValidationDetailsHuman(output *strings.Bui
 
 // renderValidationDetailHuman renders a single validation detail in human format with enhanced styling
 func (r *DefaultReportRenderer) renderValidationDetailHuman(output *strings.Builder, detail models.ValidationDetail, indent string) {
-	icon := "✅"
+	icon := IconSuccess
 	iconColor := r.getColor("green")
 	if !detail.IsPassed() {
-		icon = "❌"
+		icon = IconFailed
 		iconColor = r.getColor("red")
 	}
 
@@ -457,11 +464,11 @@ func (r *DefaultReportRenderer) renderValidationDetailHuman(output *strings.Buil
 func (r *DefaultReportRenderer) getStatusIcon(status models.AlignmentStatus) string {
 	switch status {
 	case models.StatusSuccess:
-		return "✅"
+		return IconSuccess
 	case models.StatusFailed:
-		return "❌"
+		return IconFailed
 	case models.StatusSkipped:
-		return "⏭️"
+		return IconSkipped
 	default:
 		return "❓"
 	}

@@ -27,6 +27,11 @@ import (
 	"github.com/flowspec/flowspec-cli/internal/models"
 )
 
+// Hash format constants
+const (
+	hexFormat = "%x"
+)
+
 // SpecParser defines the interface for parsing ServiceSpecs from source code
 type SpecParser interface {
 	ParseFromSource(sourcePath string) (*models.ParseResult, error)
@@ -653,7 +658,11 @@ func (pc *ParseCache) Put(filePath string, modTime time.Time, specs []models.Ser
 	}
 
 	// Calculate file hash for integrity check
-	hash, _ := pc.calculateFileHash(filePath)
+	hash, err := pc.calculateFileHash(filePath)
+	if err != nil {
+		// If hash calculation fails, use empty string but still cache the result
+		hash = ""
+	}
 
 	entry := &CacheEntry{
 		FilePath:     filePath,
@@ -697,7 +706,7 @@ func (pc *ParseCache) calculateFileHash(filePath string) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+	return fmt.Sprintf(hexFormat, hash.Sum(nil)), nil
 }
 
 // Clear removes all entries from the cache
