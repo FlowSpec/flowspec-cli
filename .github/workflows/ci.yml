@@ -46,7 +46,7 @@ jobs:
       run: go tool cover -html=coverage.out -o coverage.html
 
     - name: 上传覆盖率报告
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: |
@@ -137,7 +137,7 @@ jobs:
         fi
 
     - name: 上传构建产物
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
         path: build/

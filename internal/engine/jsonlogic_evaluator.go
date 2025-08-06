@@ -65,13 +65,13 @@ func NewJSONLogicEvaluatorWithConfig(config *JSONLogicConfig) *JSONLogicEvaluato
 func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]interface{}, context *EvaluationContext) (*AssertionResult, error) {
 	if assertion == nil || len(assertion) == 0 {
 		return &AssertionResult{
-			Passed:     true,
-			Expected:   true,
-			Actual:     true,
-			Expression: "empty_assertion",
-			Message:    "Empty assertion always passes",
-		},
-	nil
+				Passed:     true,
+				Expected:   true,
+				Actual:     true,
+				Expression: "empty_assertion",
+				Message:    "Empty assertion always passes",
+			},
+			nil
 	}
 
 	// Build evaluation data from context
@@ -83,8 +83,6 @@ func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]inte
 	// Check if this is a multi-condition assertion (ServiceSpec format)
 	// If so, convert it to a proper JSONLogic "and" expression
 	processedAssertion := evaluator.preprocessAssertion(assertion)
-
-
 
 	// Validate assertion before evaluation if in strict mode
 	if evaluator.config.StrictMode {
@@ -98,14 +96,14 @@ func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]inte
 	if err != nil {
 		assertionJSON, _ := json.Marshal(assertion)
 		return &AssertionResult{
-			Passed:     false,
-			Expected:   true,
-			Actual:     false,
-			Expression: string(assertionJSON),
-			Message:    fmt.Sprintf("JSONLogic evaluation failed: %v", err),
-			Error:      err,
-		},
-	nil
+				Passed:     false,
+				Expected:   true,
+				Actual:     false,
+				Expression: string(assertionJSON),
+				Message:    fmt.Sprintf("JSONLogic evaluation failed: %v", err),
+				Error:      err,
+			},
+			nil
 	}
 
 	// Convert result to boolean
@@ -113,13 +111,13 @@ func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]inte
 
 	assertionJSON, _ := json.Marshal(assertion)
 	return &AssertionResult{
-		Passed:     passed,
-		Expected:   true,
-		Actual:     result,
-		Expression: string(assertionJSON),
-		Message:    evaluator.buildResultMessage(passed, assertion, result),
-	},
-	nil
+			Passed:     passed,
+			Expected:   true,
+			Actual:     result,
+			Expression: string(assertionJSON),
+			Message:    evaluator.buildResultMessage(passed, assertion, result),
+		},
+		nil
 }
 
 // ValidateAssertion implements the AssertionEvaluator interface
@@ -194,7 +192,7 @@ func (evaluator *JSONLogicEvaluator) buildEvaluationData(context *EvaluationCont
 
 		// Also add expanded attributes under the "attributes" key for JSONLogic expressions
 		spanData["attributes"] = expandedAttrs
-		
+
 		data["span"] = spanData
 
 		// Add raw attributes and underscore-versions for backward compatibility
@@ -285,7 +283,7 @@ func expandDotKeys(flat map[string]interface{}) map[string]interface{} {
 					current[part] = make(map[string]interface{})
 				}
 				// Type assertion to continue traversal
-			if next, ok := current[part].(map[string]interface{}); ok {
+				if next, ok := current[part].(map[string]interface{}); ok {
 					current = next
 				} else {
 					// This case handles when a key is both a prefix and a full key
@@ -351,7 +349,7 @@ func (evaluator *JSONLogicEvaluator) preprocessRule(rule interface{}) interface{
 					// For now, implement basic pattern matching
 					pattern := valueArray[1]
 					variable := valueArray[0]
-					
+
 					// Convert common regex patterns to JSONLogic equivalents
 					if patternStr, ok := pattern.(string); ok {
 						switch patternStr {
@@ -385,7 +383,7 @@ func (evaluator *JSONLogicEvaluator) preprocessRule(rule interface{}) interface{
 						default:
 							// Fallback for unknown patterns
 							result["!="] = []interface{}{variable, nil}
-							}
+						}
 					} else {
 						result[key] = evaluator.preprocessRule(value)
 					}
@@ -557,7 +555,7 @@ func (evaluator *JSONLogicEvaluator) preprocessAssertion(assertion map[string]in
 	// Count non-JSONLogic keys and convert them
 	nonOpKeys := 0
 	var conditions []interface{}
-	
+
 	for key, value := range assertion {
 		if !jsonLogicOps[key] {
 			nonOpKeys++

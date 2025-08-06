@@ -1,0 +1,97 @@
+name: " Bug Report"
+about: Create a report to help us improve the project
+title: "[BUG] "
+labels: "bug, needs-triage"
+assignees: ''
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to fill out this bug report!
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: "Bug Description"
+      description: "A clear and concise description of what the bug is."
+      placeholder: "When I run the align command with a malformed trace file, the CLI panics instead of showing a friendly error message."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "Steps to Reproduce"
+      description: "Please provide detailed steps to reproduce the behavior."
+      placeholder: |
+        1. Create a ServiceSpec file with content '...'
+        2. Create a trace file `trace.json` with content '...'
+        3. Run command `flowspec-cli align --path . --trace trace.json`
+        4. See error output...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "Expected Behavior"
+      description: "A clear and concise description of what you expected to happen."
+      placeholder: "I expected the CLI to exit with code 2 and print a clear error message like 'Error: Failed to parse trace file: invalid JSON at line X'."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "Actual Behavior"
+      description: "A clear and concise description of what actually happened."
+      placeholder: "The CLI crashed with a long panic stack trace."
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Screenshots"
+      description: "If applicable, add screenshots to help explain your problem."
+
+  - type: fieldset
+    id: environment
+    attributes:
+      label: "Environment Information"
+      description: "Please complete the following information."
+    fields:
+      - type: input
+        id: os
+        attributes:
+          label: OS
+          placeholder: "e.g. macOS Sonoma, Windows 11, Ubuntu 22.04"
+        validations:
+          required: true
+      - type: input
+        id: go-version
+        attributes:
+          label: Go Version
+          placeholder: "e.g. 1.21.5 (run 'go version')"
+        validations:
+          required: false
+      - type: input
+        id: cli-version
+        attributes:
+          label: FlowSpec CLI Version
+          placeholder: "e.g. v0.1.0 (run 'flowspec-cli --version')"
+        validations:
+          required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "Additional Context"
+      description: "Add any other context about the problem here, such as log file snippets."
+      
+  - type: textarea
+    id: possible-solution
+    attributes:
+      label: "Possible Solution"
+      description: "If you have any ideas on how to fix this bug, please describe them here."

@@ -1,0 +1,57 @@
+name: "✨ Feature Request"
+about: Suggest an idea or new feature for this project
+title: "[FEAT] "
+labels: "enhancement, needs-triage"
+assignees: ''
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for contributing to FlowSpec! Please provide as much detail as possible.
+
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: "Is your feature request related to a problem?"
+      description: "A clear and concise description of what the problem is. Ex. I'm always frustrated when I have to manually check..."
+      placeholder: "When working with large trace files, the CLI can become unresponsive, and I have no way of knowing if it's still working or has crashed."
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: "User Story"
+      description: "Please frame your request as a user story. This helps us understand the value and target user."
+      placeholder: "As a developer working on a large project, I want the CLI to show a progress bar during long operations, so that I can get real-time feedback and estimate the completion time."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: desired-solution
+    attributes:
+      label: "Describe the solution you'd like"
+      description: "A clear and concise description of what you want to happen."
+      placeholder: "When I run `flowspec-cli align` on a large trace file, a progress bar should appear in the terminal, showing the percentage of specs being processed."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Describe alternatives you've considered"
+      description: "A clear and concise description of any alternative solutions or features you've considered."
+
+  - type: textarea
+    id: implementation-suggestion
+    attributes:
+      label: "Implementation Suggestion (Optional)"
+      description: "If you have ideas on how to implement this, please share them. This is not required."
+      placeholder: "We could use a library like 'progressbar' for Go to implement the terminal UI. The AlignmentEngine could report its progress back to the CLI layer through a channel."
+      
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "Additional Context"
+      description: "Add any other context, mockups, or screenshots about the feature request here."

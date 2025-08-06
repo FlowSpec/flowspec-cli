@@ -9,6 +9,15 @@ Thank you for your interest in the FlowSpec CLI project! We welcome all forms of
 - 🧪 Writing Test Cases
 - 📖 Translating Documents
 
+## Reporting Bugs and Suggesting Features
+
+We use GitHub Issues to track bug reports and feature requests. Before creating an issue, please check if a similar one already exists.
+
+- To **report a bug**, please fill out our [**Bug Report Template**](./.github/ISSUE_TEMPLATE/bug_report.yml).
+- To **suggest a new feature**, please use our [**Feature Request Template**](./.github/ISSUE_TEMPLATE/feature_request.yml).
+
+Providing detailed information helps us address your submission effectively.
+
 ## Development Environment Setup
 
 ### Prerequisites
@@ -394,17 +403,7 @@ We use [Semantic Versioning](https://semver.org/):
 
 ## Community Code of Conduct
 
-### Our Pledge
-
-In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to making participation in our project and our community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
-
-### Unacceptable Behavior
-
-- The use of sexualized language or imagery and unwelcome sexual attention or advances
-- Trolling, insulting/derogatory comments, and personal or political attacks
-- Public or private harassment
-- Publishing others' private information, such as a physical or electronic address, without explicit permission
-- Other conduct which could reasonably be considered inappropriate in a professional setting
+Please note that this project is released with a Contributor Code of Conduct. By participating in this project you agree to abide by its terms. Please read our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Getting Help
 
