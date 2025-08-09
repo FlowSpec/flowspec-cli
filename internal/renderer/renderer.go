@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flowspec/flowspec-cli/internal/i18n"
 	"github.com/flowspec/flowspec-cli/internal/models"
 )
 
@@ -35,11 +36,14 @@ type ReportRenderer interface {
 	RenderHuman(report *models.AlignmentReport) (string, error)
 	RenderJSON(report *models.AlignmentReport) (string, error)
 	GetExitCode(report *models.AlignmentReport) int
+	SetLanguage(lang i18n.SupportedLanguage)
+	GetLanguage() i18n.SupportedLanguage
 }
 
 // DefaultReportRenderer implements the ReportRenderer interface
 type DefaultReportRenderer struct {
-	config *RendererConfig
+	config    *RendererConfig
+	localizer *i18n.Localizer
 }
 
 // RendererConfig holds configuration for the report renderer
@@ -63,15 +67,27 @@ func DefaultRendererConfig() *RendererConfig {
 // NewReportRenderer creates a new report renderer with default configuration
 func NewReportRenderer() *DefaultReportRenderer {
 	return &DefaultReportRenderer{
-		config: DefaultRendererConfig(),
+		config:    DefaultRendererConfig(),
+		localizer: i18n.NewLocalizerFromEnv(),
 	}
 }
 
 // NewReportRendererWithConfig creates a new report renderer with custom configuration
 func NewReportRendererWithConfig(config *RendererConfig) *DefaultReportRenderer {
 	return &DefaultReportRenderer{
-		config: config,
+		config:    config,
+		localizer: i18n.NewLocalizerFromEnv(),
 	}
+}
+
+// SetLanguage sets the language for the renderer
+func (r *DefaultReportRenderer) SetLanguage(lang i18n.SupportedLanguage) {
+	r.localizer.SetLanguage(lang)
+}
+
+// GetLanguage returns the current language
+func (r *DefaultReportRenderer) GetLanguage() i18n.SupportedLanguage {
+	return r.localizer.GetLanguage()
 }
 
 // RenderHuman implements the ReportRenderer interface with enhanced formatting and color support

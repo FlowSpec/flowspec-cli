@@ -22,7 +22,7 @@ import (
 // Version information
 var (
 	// Version is the current version of FlowSpec CLI
-	Version = "0.1.0"
+	Version = "0.2.0"
 
 	// GitCommit is the git commit hash
 	GitCommit = "unknown"

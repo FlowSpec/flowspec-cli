@@ -168,8 +168,6 @@ func (td *TraceData) BuildSpanTree() error {
 	return nil
 }
 
-
-
 // GetDuration returns the duration of the span in nanoseconds
 func (s *Span) GetDuration() int64 {
 	return s.EndTime - s.StartTime

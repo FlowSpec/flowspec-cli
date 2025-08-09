@@ -142,8 +142,7 @@ func TestGetSupportedLanguages(t *testing.T) {
 		t.Error("English should be in supported languages")
 	}
 }
-func 
-TestDetectLanguageFromEnv(t *testing.T) {
+func TestDetectLanguageFromEnv(t *testing.T) {
 	tests := []struct {
 		name         string
 		flowspecLang string

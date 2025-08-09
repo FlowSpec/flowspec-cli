@@ -36,6 +36,36 @@ flowspec-cli align \
   --path=./src \
   --trace=./traces/success-scenario.json \
   --output=json
+
+# Run with different languages (New in v0.2.0)
+flowspec-cli align \
+  --path=./src \
+  --trace=./traces/success-scenario.json \
+  --lang=zh
+
+flowspec-cli align \
+  --path=./src \
+  --trace=./traces/success-scenario.json \
+  --lang=ja
+```
+
+### Language Support Examples
+
+FlowSpec CLI v0.2.0+ supports multiple languages for output:
+
+```bash
+# English (default)
+flowspec-cli align --path=./src --trace=./traces/success-scenario.json --lang=en
+
+# Chinese Simplified
+flowspec-cli align --path=./src --trace=./traces/success-scenario.json --lang=zh
+
+# Japanese
+flowspec-cli align --path=./src --trace=./traces/success-scenario.json --lang=ja
+
+# Auto-detection from environment
+export FLOWSPEC_LANG=ko
+flowspec-cli align --path=./src --trace=./traces/success-scenario.json
 ```
 
 

@@ -366,10 +366,8 @@ func (bp *BaseFileParser) cleanCommentLine(line string, pattern *CommentPattern)
 			prefixIndex := strings.Index(trimmed, prefixToRemove)
 			if prefixIndex == 0 {
 				// Remove the prefix and any immediately following space
-				remaining := trimmed[len(prefixToRemove):]
-				if strings.HasPrefix(remaining, " ") {
-					remaining = remaining[1:]
-				}
+				remaining := strings.TrimPrefix(trimmed, prefixToRemove)
+				remaining = strings.TrimPrefix(remaining, " ")
 				// Preserve the original indentation structure for YAML
 				leadingSpaces := len(cleaned) - len(strings.TrimLeft(cleaned, " 	"))
 				if leadingSpaces > 0 && remaining != "" {
@@ -508,11 +506,6 @@ func (bp *BaseFileParser) ValidateJSONLogic(data interface{}) error {
 	}
 
 	return nil
-}
-
-// Helper function to convert line numbers (for debugging)
-func (bp *BaseFileParser) formatLineNumber(line int) string {
-	return strconv.Itoa(line)
 }
 
 // Helper function to get the maximum of two integers

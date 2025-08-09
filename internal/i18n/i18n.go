@@ -157,7 +157,7 @@ func IsSupported(lang SupportedLanguage) bool {
 		LanguageGerman,
 		LanguageSpanish,
 	}
-	
+
 	for _, supported := range supportedLangs {
 		if lang == supported {
 			return true
