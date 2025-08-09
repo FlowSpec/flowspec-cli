@@ -21,11 +21,14 @@ FlowSpec CLI is a powerful command-line tool for parsing ServiceSpec annotations
 
 ## Features
 
-- 📝 Parse ServiceSpec annotations from multi-language source code (Java, TypeScript, Go).
-- 📊 Ingest and process OpenTelemetry trace data.
-- ✅ Perform alignment validation between specifications and actual traces.
-- 📋 Generate detailed validation reports (Human and JSON formats).
-- 🔧 Supports a command-line interface for easy integration into CI/CD pipelines.
+- 🌍 **Internationalization**: Full multi-language support (English, Chinese, Japanese, Korean, French, German, Spanish)
+- 📝 **Multi-Language Parsing**: Parse ServiceSpec annotations from Java, TypeScript, and Go source code
+- 📊 **OpenTelemetry Integration**: Ingest and process OpenTelemetry trace data
+- ✅ **Alignment Validation**: Perform validation between specifications and actual traces
+- 📋 **Localized Reports**: Generate detailed validation reports in multiple languages (Human and JSON formats)
+- 🔧 **CLI Integration**: Command-line interface with language selection for easy CI/CD integration
+- 🤖 **Auto Language Detection**: Automatically detects preferred language from environment variables
+- 🚀 **High Performance**: Optimized for speed with concurrent processing and memory efficiency
 
 ## Quick Start
 
@@ -96,17 +99,87 @@ flowspec-cli align --path=./my-project --trace=./traces/run-1.json --output=huma
 # JSON format output
 flowspec-cli align --path=./my-project --trace=./traces/run-1.json --output=json
 
+# Specify language for output
+flowspec-cli align --path=./my-project --trace=./traces/run-1.json --lang=zh
+
 # Verbose output
 flowspec-cli align --path=./my-project --trace=./traces/run-1.json --output=human --verbose
 ```
+
+### Language Support
+
+FlowSpec CLI supports multiple languages for output and reports:
+
+```bash
+# English (default)
+flowspec-cli align --path=./src --trace=./trace.json --lang=en
+
+# Chinese Simplified
+flowspec-cli align --path=./src --trace=./trace.json --lang=zh
+
+# Chinese Traditional
+flowspec-cli align --path=./src --trace=./trace.json --lang=zh-TW
+
+# Japanese
+flowspec-cli align --path=./src --trace=./trace.json --lang=ja
+
+# Korean
+flowspec-cli align --path=./src --trace=./trace.json --lang=ko
+
+# French
+flowspec-cli align --path=./src --trace=./trace.json --lang=fr
+
+# German
+flowspec-cli align --path=./src --trace=./trace.json --lang=de
+
+# Spanish
+flowspec-cli align --path=./src --trace=./trace.json --lang=es
+```
+
+**Auto-detection**: If no language is specified, FlowSpec CLI will automatically detect your preferred language from environment variables (`FLOWSPEC_LANG` or `LANG`).
 
 ### Command Options
 
 - `--path, -p`: Source code directory path (default: ".")
 - `--trace, -t`: OpenTelemetry trace file path (required)
 - `--output, -o`: Output format (human|json, default: "human")
+- `--lang`: Language for output (en, zh, zh-TW, ja, ko, fr, de, es). Auto-detected if not specified
 - `--verbose, -v`: Enable verbose output
 - `--log-level`: Set log level (debug, info, warn, error)
+
+### Language Configuration
+
+#### Manual Language Selection
+
+```bash
+# Set language via command line
+flowspec-cli align --path ./src --trace ./trace.json --lang zh
+```
+
+#### Environment Variables
+
+```bash
+# Set preferred language via environment variable
+export FLOWSPEC_LANG=zh
+flowspec-cli align --path ./src --trace ./trace.json
+
+# Or use system LANG variable
+export LANG=zh_CN.UTF-8
+flowspec-cli align --path ./src --trace ./trace.json
+```
+
+#### Supported Languages
+
+| Language | Code | Name |
+|----------|------|------|
+| English | `en` | English (Default) |
+| Chinese (Simplified) | `zh` | 简体中文 |
+| Chinese (Traditional) | `zh-TW` | 繁體中文 |
+| Japanese | `ja` | 日本語 |
+| Korean | `ko` | 한국어 |
+| French | `fr` | Français |
+| German | `de` | Deutsch |
+| Spanish | `es` | Español |
 
 ### Using in Node.js Projects
 

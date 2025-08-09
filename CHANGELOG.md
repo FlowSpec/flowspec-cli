@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-01-09
+
+### Added
+- 🌍 **Complete Internationalization (i18n) Support**: Multi-language support for CLI output and reports
+  - English (en) - Default language
+  - Chinese Simplified (zh) - 简体中文
+  - Chinese Traditional (zh-TW) - 繁體中文
+  - Japanese (ja) - 日本語
+  - Korean (ko) - 한국어
+  - French (fr) - Français
+  - German (de) - Deutsch
+  - Spanish (es) - Español
+- 🔧 **Language Selection**: New `--lang` CLI parameter for manual language selection
+- 🤖 **Auto-detection**: Automatic language detection from environment variables (`FLOWSPEC_LANG`, `LANG`)
+- 📋 **Localized Reports**: All report outputs now support multiple languages
+- 💬 **Localized CLI Messages**: All CLI messages and logs now support internationalization
+- 🧪 **Comprehensive i18n Testing**: Full test coverage for internationalization features
+
+### Changed
+- 📊 **Report Rendering**: Enhanced report renderer with internationalization system
+- 🖥️ **CLI Interface**: Enhanced CLI with language selection capabilities
+- 🌐 **Default Behavior**: Reports now default to English unless otherwise specified or auto-detected
+- 🏗️ **Architecture**: Added dedicated `internal/i18n` package for internationalization
+
+### Fixed
+- 🔧 **JSONLogic Type Conversion**: Fixed critical JSONLogic evaluation errors with interface type conversions
+- 🔍 **Variable Path Resolution**: Improved variable path handling in assertion evaluation
+- 📊 **Test Data Consistency**: Fixed test data mismatches between ServiceSpec assertions and trace data
+- 📝 **YAML Parsing**: Resolved duplicate key issues in ServiceSpec YAML parsing
+
+### Technical Improvements
+- Enhanced error handling and user feedback
+- Improved test coverage for internationalization features
+- Better separation of concerns with dedicated i18n package
+- More robust CLI parameter validation
+- Performance optimized translation system (< 1µs per translation)
+- Thread-safe concurrent language switching
+
+### Performance
+- **Translation Performance**: < 1µs per translation operation
+- **Memory Efficiency**: Zero runtime allocation for translations
+- **Concurrent Safety**: Full thread-safe support for language switching
+- **Startup Time**: No impact on CLI startup performance
+
 ## [0.1.0] - 2025-08-05
 
 ### Added

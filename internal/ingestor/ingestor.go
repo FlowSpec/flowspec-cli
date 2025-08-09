@@ -301,8 +301,8 @@ func (ti *DefaultTraceIngestor) IngestFromReader(reader io.Reader) (*models.Trac
 
 	// Parse OTLP JSON
 	var otlpTrace OTLPTrace
-	if err := json.Unmarshal(data, &otlpTrace); err != nil {
-		return nil, fmt.Errorf("failed to parse OTLP JSON: %w", err)
+	if unmarshalErr := json.Unmarshal(data, &otlpTrace); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to parse OTLP JSON: %w", unmarshalErr)
 	}
 
 	// Convert to internal format
@@ -345,7 +345,9 @@ func (ti *DefaultTraceIngestor) checkMemoryLimit() error {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	if int64(m.Alloc) > ti.memoryLimit {
+	// ti.memoryLimit is int64, so we need to cast it to uint64 for comparison
+	// This is safe as memoryLimit should not be negative.
+	if m.Alloc > uint64(ti.memoryLimit) {
 		return fmt.Errorf("memory usage %d bytes exceeds limit %d bytes", m.Alloc, ti.memoryLimit)
 	}
 

@@ -63,7 +63,7 @@ func NewJSONLogicEvaluatorWithConfig(config *JSONLogicConfig) *JSONLogicEvaluato
 
 // EvaluateAssertion implements the AssertionEvaluator interface
 func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]interface{}, context *EvaluationContext) (*AssertionResult, error) {
-	if assertion == nil || len(assertion) == 0 {
+	if len(assertion) == 0 {
 		return &AssertionResult{
 				Passed:     true,
 				Expected:   true,
@@ -86,8 +86,8 @@ func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]inte
 
 	// Validate assertion before evaluation if in strict mode
 	if evaluator.config.StrictMode {
-		if err := evaluator.ValidateAssertion(processedAssertion); err != nil {
-			return nil, fmt.Errorf("assertion validation failed: %w", err)
+		if validationErr := evaluator.ValidateAssertion(processedAssertion); validationErr != nil {
+			return nil, fmt.Errorf("assertion validation failed: %w", validationErr)
 		}
 	}
 

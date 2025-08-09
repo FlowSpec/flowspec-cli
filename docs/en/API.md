@@ -98,7 +98,65 @@ type ReportRenderer interface {
     
     // GetExitCode gets the exit code based on the report result.
     GetExitCode(report *AlignmentReport) int
+    
+    // SetLanguage sets the language for report rendering.
+    SetLanguage(lang i18n.SupportedLanguage)
+    
+    // GetLanguage returns the current language setting.
+    GetLanguage() i18n.SupportedLanguage
 }
+```
+
+### Internationalization Interface
+
+The internationalization interface for multi-language support.
+
+```go
+type Localizer interface {
+    // T translates a message key to the current language.
+    // key: The message key to translate.
+    // params: Optional parameters for parameterized messages.
+    // Returns: The translated message.
+    T(key string, params ...interface{}) string
+    
+    // SetLanguage sets the current language.
+    SetLanguage(lang SupportedLanguage)
+    
+    // GetLanguage returns the current language.
+    GetLanguage() SupportedLanguage
+}
+
+type SupportedLanguage string
+
+const (
+    LanguageEnglish             SupportedLanguage = "en"
+    LanguageChinese             SupportedLanguage = "zh"
+    LanguageChineseTraditional  SupportedLanguage = "zh-TW"
+    LanguageJapanese            SupportedLanguage = "ja"
+    LanguageKorean              SupportedLanguage = "ko"
+    LanguageFrench              SupportedLanguage = "fr"
+    LanguageGerman              SupportedLanguage = "de"
+    LanguageSpanish             SupportedLanguage = "es"
+)
+```
+
+#### Usage Examples
+
+```go
+// Create localizer with auto-detection
+localizer := i18n.NewLocalizerFromEnv()
+
+// Create localizer with specific language
+localizer := i18n.NewLocalizer(i18n.LanguageChinese)
+
+// Get translated message
+title := localizer.T("report.title")
+
+// Parameterized translation
+summary := localizer.T("summary.total", 42)
+
+// Runtime language switching
+localizer.SetLanguage(i18n.LanguageJapanese)
 ```
 
 ## Data Models

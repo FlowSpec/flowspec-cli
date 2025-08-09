@@ -174,7 +174,10 @@ func NewValidationContext(spec models.ServiceSpec, span *models.Span, traceData 
 // AlignmentEngine methods
 
 // AlignSpecsWithTrace implements the AlignmentEngine interface
-func (engine *DefaultAlignmentEngine) AlignSpecsWithTrace(specs []models.ServiceSpec, traceData *models.TraceData) (*models.AlignmentReport, error) {
+func (engine *DefaultAlignmentEngine) AlignSpecsWithTrace(
+	specs []models.ServiceSpec,
+	traceData *models.TraceData,
+) (*models.AlignmentReport, error) {
 	if len(specs) == 0 {
 		return models.NewAlignmentReport(), nil
 	}
@@ -304,7 +307,10 @@ func (engine *DefaultAlignmentEngine) AlignSpecsWithTrace(specs []models.Service
 }
 
 // AlignSingleSpec implements the AlignmentEngine interface
-func (engine *DefaultAlignmentEngine) AlignSingleSpec(spec models.ServiceSpec, traceData *models.TraceData) (*models.AlignmentResult, error) {
+func (engine *DefaultAlignmentEngine) AlignSingleSpec(
+	spec models.ServiceSpec,
+	traceData *models.TraceData,
+) (*models.AlignmentResult, error) {
 	if engine.evaluator == nil {
 		return nil, fmt.Errorf("no assertion evaluator configured")
 	}
@@ -375,7 +381,12 @@ func (engine *DefaultAlignmentEngine) GetEvaluator() AssertionEvaluator {
 }
 
 // alignmentWorker processes specs concurrently
-func (engine *DefaultAlignmentEngine) alignmentWorker(specChan <-chan models.ServiceSpec, resultChan chan<- *models.AlignmentResult, errorChan chan<- error, traceData *models.TraceData) {
+func (engine *DefaultAlignmentEngine) alignmentWorker(
+	specChan <-chan models.ServiceSpec,
+	resultChan chan<- *models.AlignmentResult,
+	errorChan chan<- error,
+	traceData *models.TraceData,
+) {
 	for spec := range specChan {
 		result, err := engine.AlignSingleSpec(spec, traceData)
 		if err != nil {
@@ -387,7 +398,12 @@ func (engine *DefaultAlignmentEngine) alignmentWorker(specChan <-chan models.Ser
 }
 
 // evaluateSpecForSpan evaluates a spec against a specific span
-func (engine *DefaultAlignmentEngine) evaluateSpecForSpan(spec models.ServiceSpec, span *models.Span, traceData *models.TraceData, result *models.AlignmentResult) error {
+func (engine *DefaultAlignmentEngine) evaluateSpecForSpan(
+	spec models.ServiceSpec,
+	span *models.Span,
+	traceData *models.TraceData,
+	result *models.AlignmentResult,
+) error {
 	context := NewEvaluationContext(span, traceData)
 
 	// Populate context with span data
@@ -468,14 +484,14 @@ func (engine *DefaultAlignmentEngine) generateActionableErrorMessage(
 ) string {
 	if result.Passed {
 		return fmt.Sprintf("%s assertion passed: %s",
-			strings.Title(detailType), result.Message)
+			cases.Title(language.English).String(detailType), result.Message)
 	}
 
 	// Build detailed failure message
 	var msgBuilder strings.Builder
 
 	msgBuilder.WriteString(fmt.Sprintf("%s assertion failed in span '%s' (ID: %s)\n",
-		strings.Title(detailType), span.Name, span.SpanID))
+		cases.Title(language.English).String(detailType), span.Name, span.SpanID))
 
 	// Add assertion details with enhanced context
 	msgBuilder.WriteString(fmt.Sprintf("Assertion: %s\n", result.Expression))
@@ -725,7 +741,10 @@ func (engine *DefaultAlignmentEngine) extractVariablesRecursive(obj interface{},
 }
 
 // extractContextInfo extracts relevant context information for debugging
-func (engine *DefaultAlignmentEngine) extractContextInfo(span *models.Span, context *EvaluationContext) map[string]interface{} {
+func (engine *DefaultAlignmentEngine) extractContextInfo(
+	span *models.Span,
+	context *EvaluationContext,
+) map[string]interface{} {
 	info := make(map[string]interface{})
 
 	// Span information

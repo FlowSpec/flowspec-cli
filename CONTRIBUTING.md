@@ -297,6 +297,119 @@ make performance-tests-only
 go test -run TestMemoryUsage ./cmd/flowspec-cli/ -timeout 30m
 ```
 
+## Internationalization (i18n) Contribution
+
+FlowSpec CLI v0.2.0+ supports multiple languages. We welcome contributions to improve existing translations or add new languages.
+
+### Adding a New Language
+
+1. **Check if the language is supported**:
+   ```bash
+   # Check supported languages in internal/i18n/i18n.go
+   grep -A 20 "const (" internal/i18n/i18n.go
+   ```
+
+2. **Add language constant** (if not exists):
+   ```go
+   // In internal/i18n/i18n.go
+   const (
+       // ... existing languages
+       LanguageYourLanguage SupportedLanguage = "xx"
+   )
+   ```
+
+3. **Create message file**:
+   ```bash
+   # Create new message file
+   cp internal/i18n/messages_en.go internal/i18n/messages_xx.go
+   ```
+
+4. **Translate messages**:
+   ```go
+   // In internal/i18n/messages_xx.go
+   func getYourLanguageMessages() map[string]string {
+       return map[string]string{
+           "report.title": "Your Language Title",
+           "report.summary": "Your Language Summary",
+           // ... translate all keys
+       }
+   }
+   ```
+
+5. **Update message loading**:
+   ```go
+   // In internal/i18n/messages_other.go
+   func getMessages(lang SupportedLanguage) map[string]string {
+       switch lang {
+       // ... existing cases
+       case LanguageYourLanguage:
+           return getYourLanguageMessages()
+       }
+   }
+   ```
+
+6. **Add tests**:
+   ```go
+   // In internal/i18n/i18n_test.go
+   func TestYourLanguageTranslation(t *testing.T) {
+       localizer := NewLocalizer(LanguageYourLanguage)
+       title := localizer.T("report.title")
+       assert.NotEqual(t, "report.title", title)
+   }
+   ```
+
+### Improving Existing Translations
+
+1. **Find the message file**:
+   - English: `internal/i18n/messages_en.go`
+   - Chinese: `internal/i18n/messages_zh.go`
+   - Others: `internal/i18n/messages_other.go`
+
+2. **Update translations**:
+   ```go
+   // Improve existing translations
+   "report.title": "Better Translation",
+   ```
+
+3. **Test your changes**:
+   ```bash
+   # Run i18n tests
+   go test ./internal/i18n/... -v
+   
+   # Test with CLI
+   flowspec-cli align --path ./examples/simple-user-service/src \
+     --trace ./examples/simple-user-service/traces/success-scenario.json \
+     --lang xx
+   ```
+
+### Translation Guidelines
+
+- **Consistency**: Use consistent terminology across all messages
+- **Context**: Consider the context where the message will be displayed
+- **Length**: Keep translations reasonably similar in length to the original
+- **Cultural Sensitivity**: Ensure translations are culturally appropriate
+- **Technical Terms**: Maintain technical terms that are commonly used in the target language
+
+### Message Key Conventions
+
+- Use dot notation: `category.subcategory.message`
+- Keep keys in English for consistency
+- Use descriptive key names: `report.summary.total` not `rpt.sum.tot`
+
+### Testing Translations
+
+```bash
+# Test specific language
+export FLOWSPEC_LANG=xx
+go run cmd/flowspec-cli/main.go align --help
+
+# Test all languages
+for lang in en zh zh-TW ja ko fr de es; do
+  echo "Testing $lang..."
+  flowspec-cli align --path ./test --trace ./test.json --lang $lang
+done
+```
+
 ## Documentation Contribution
 
 ### Document Types

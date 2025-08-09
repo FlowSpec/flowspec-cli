@@ -419,11 +419,6 @@ func (p *DefaultSpecParser) parseWorkerWithMetrics(fileChan <-chan string, specs
 	}
 }
 
-// parseFile parses a single file with caching support
-func (p *DefaultSpecParser) parseFile(filepath string) ([]models.ServiceSpec, []models.ParseError) {
-	return p.parseFileWithMetrics(filepath, nil)
-}
-
 // parseFileWithMetrics parses a single file with caching support and metrics tracking
 func (p *DefaultSpecParser) parseFileWithMetrics(filepath string, metrics *ParseMetrics) ([]models.ServiceSpec, []models.ParseError) {
 	// Get file info for caching
@@ -701,7 +696,7 @@ func (pc *ParseCache) calculateFileHash(filePath string) (string, error) {
 	}
 	defer file.Close()
 
-	hash := md5.New()
+	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}

@@ -32,7 +32,6 @@ type StreamingIngestor struct {
 	chunkSize        int
 	maxMemoryUsage   int64
 	progressCallback func(processed, total int64)
-	mu               sync.RWMutex
 }
 
 // StreamingConfig holds configuration for streaming ingestion
@@ -336,7 +335,7 @@ func (mm *MemoryMonitor) UpdateMemoryUsage() {
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	mm.currentMemory = int64(m.Alloc)
+	mm.currentMemory = m.Alloc
 }
 
 // ShouldTriggerGC returns true if garbage collection should be triggered

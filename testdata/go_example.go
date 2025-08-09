@@ -13,22 +13,25 @@ type UserService struct {
 // operationId: "createUser"
 // description: "Create a new user account"
 // preconditions:
-//   "email_validation": {
-//     "and": [
-//       {"!=": [{"var": "request.body.email"}, null]},
-//       {"regex": [{"var": "request.body.email"}, "^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$"]}
-//     ]
-//   }
-//   "password_strength": {
-//     ">=": [{"strlen": [{"var": "request.body.password"}]}, 8]
-//   }
+//
+//	"email_validation": {
+//	  "and": [
+//	    {"!=": [{"var": "request.body.email"}, null]},
+//	    {"regex": [{"var": "request.body.email"}, "^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$"]}
+//	  ]
+//	}
+//	"password_strength": {
+//	  ">=": [{"strlen": [{"var": "request.body.password"}]}, 8]
+//	}
+//
 // postconditions:
-//   "successful_creation": {
-//     "and": [
-//       {"==": [{"var": "response.status"}, 201]},
-//       {"!=": [{"var": "response.body.userId"}, null]}
-//     ]
-//   }
+//
+//	"successful_creation": {
+//	  "and": [
+//	    {"==": [{"var": "response.status"}, 201]},
+//	    {"!=": [{"var": "response.body.userId"}, null]}
+//	  ]
+//	}
 func (s *UserService) CreateUser(ctx context.Context, request *CreateUserRequest) (*User, error) {
 	return s.repo.Save(ctx, models.NewUser(request))
 }

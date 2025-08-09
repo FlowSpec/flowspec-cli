@@ -69,7 +69,7 @@ func TestEnvironmentDetectionIntegration(t *testing.T) {
 	// Test Chinese environment
 	os.Setenv("FLOWSPEC_LANG", "zh")
 	localizer := NewLocalizerFromEnv()
-	
+
 	if localizer.GetLanguage() != LanguageChinese {
 		t.Errorf("Expected Chinese language, got %s", localizer.GetLanguage())
 	}
@@ -112,7 +112,7 @@ func TestParameterizedTranslations(t *testing.T) {
 		localizer := NewLocalizer(tt.lang)
 		result := localizer.T(tt.key, tt.params...)
 		if !strings.Contains(result, tt.contains) {
-			t.Errorf("Language %s: expected result to contain '%s', got: %s", 
+			t.Errorf("Language %s: expected result to contain '%s', got: %s",
 				tt.lang, tt.contains, result)
 		}
 	}
@@ -150,7 +150,7 @@ func TestAllLanguagesCompleteness(t *testing.T) {
 // BenchmarkTranslation benchmarks translation performance
 func BenchmarkTranslation(b *testing.B) {
 	localizer := NewLocalizer(LanguageEnglish)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = localizer.T("report.title")
@@ -160,7 +160,7 @@ func BenchmarkTranslation(b *testing.B) {
 // BenchmarkTranslationWithParams benchmarks parameterized translation performance
 func BenchmarkTranslationWithParams(b *testing.B) {
 	localizer := NewLocalizer(LanguageEnglish)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = localizer.T("summary.total", 100)
@@ -171,7 +171,7 @@ func BenchmarkTranslationWithParams(b *testing.B) {
 func BenchmarkLanguageSwitching(b *testing.B) {
 	localizer := NewLocalizer(LanguageEnglish)
 	languages := GetSupportedLanguages()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lang := languages[i%len(languages)]
