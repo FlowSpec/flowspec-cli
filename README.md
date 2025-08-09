@@ -31,7 +31,27 @@ FlowSpec CLI is a powerful command-line tool for parsing ServiceSpec annotations
 
 ### Installation
 
-#### Using go install (Recommended)
+#### Using NPM (Recommended for Node.js projects)
+
+Install as a development dependency in your Node.js project:
+
+```bash
+npm install @flowspec/cli --save-dev
+```
+
+Or install globally:
+
+```bash
+npm install -g @flowspec/cli
+```
+
+You can also use it directly with npx without installation:
+
+```bash
+npx @flowspec/cli --help
+```
+
+#### Using go install
 
 ```bash
 go install github.com/FlowSpec/flowspec-cli/cmd/flowspec-cli@latest
@@ -87,6 +107,38 @@ flowspec-cli align --path=./my-project --trace=./traces/run-1.json --output=huma
 - `--output, -o`: Output format (human|json, default: "human")
 - `--verbose, -v`: Enable verbose output
 - `--log-level`: Set log level (debug, info, warn, error)
+
+### Using in Node.js Projects
+
+If you installed FlowSpec CLI via NPM, you can integrate it into your Node.js development workflow:
+
+#### In package.json Scripts
+
+```json
+{
+  "scripts": {
+    "validate:specs": "flowspec-cli align --path=./src --trace=./traces/integration.json --output=json",
+    "test:integration": "flowspec-cli align --path=./services --trace=./traces/e2e.json --verbose",
+    "ci:validate": "flowspec-cli align --path=. --trace=./traces/ci-run.json --output=json > validation-report.json"
+  }
+}
+```
+
+Then run with npm:
+
+```bash
+npm run validate:specs
+npm run test:integration
+npm run ci:validate
+```
+
+#### With npx
+
+Use directly with npx for one-off validation:
+
+```bash
+npx @flowspec/cli align --path=./my-service --trace=./traces/test-run.json --output=human
+```
 
 ## ServiceSpec Annotation Format
 
@@ -196,6 +248,65 @@ flowspec-cli/
 └── Makefile            # Build scripts
 ```
 
+## Migration Guide
+
+### Migrating from Manual Installation to NPM
+
+If you're currently using FlowSpec CLI with manual installation or `go install`, you can easily migrate to the NPM package:
+
+#### For Node.js Projects
+
+1. **Install the NPM package**:
+   ```bash
+   npm install @flowspec/cli --save-dev
+   ```
+
+2. **Update your scripts** in `package.json`:
+   ```json
+   {
+     "scripts": {
+       "validate": "flowspec-cli align --path=./src --trace=./traces/test.json --output=json"
+     }
+   }
+   ```
+
+3. **Remove manual binary** (optional):
+   ```bash
+   # Remove from PATH or delete manually installed binary
+   rm /usr/local/bin/flowspec-cli  # or wherever you installed it
+   ```
+
+#### For CI/CD Pipelines
+
+Replace manual installation steps:
+
+**Before (manual installation)**:
+```yaml
+- name: Install FlowSpec CLI
+  run: |
+    curl -L https://github.com/flowspec/flowspec-cli/releases/latest/download/flowspec-cli-linux-amd64.tar.gz | tar xz
+    sudo mv flowspec-cli /usr/local/bin/
+```
+
+**After (NPM installation)**:
+```yaml
+- name: Setup Node.js
+  uses: actions/setup-node@v3
+  with:
+    node-version: '18'
+    
+- name: Install FlowSpec CLI
+  run: npm install -g @flowspec/cli
+```
+
+#### Benefits of NPM Installation
+
+- ✅ **Automatic platform detection** - No need to specify architecture
+- ✅ **Version management** - Easy to pin specific versions
+- ✅ **Integrated workflow** - Works seamlessly with Node.js projects
+- ✅ **Dependency management** - Managed alongside other dev dependencies
+- ✅ **Security** - Automatic checksum verification
+
 ## Example Projects
 
 Check out the example projects in the [examples](examples/) directory to learn how to use FlowSpec CLI in a real project.
@@ -204,6 +315,7 @@ Check out the example projects in the [examples](examples/) directory to learn h
 
 - 📖 [API Documentation](docs/en/API.md) - Detailed API interface documentation
 - 🏗️ [Architecture Document](docs/en/ARCHITECTURE.md) - Technical architecture and design decisions
+- 🔄 [Migration Guide](docs/MIGRATION_GUIDE.md) - Migrate from manual installation to NPM
 - 🤝 [Contribution Guide](CONTRIBUTING.md) - How to participate in project development
 - 📋 [Changelog](CHANGELOG.md) - Version update history
 

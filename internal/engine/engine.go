@@ -769,9 +769,11 @@ func (engine *DefaultAlignmentEngine) extractContextInfo(span *models.Span, cont
 		}
 
 		if context.TraceData.RootSpan != nil {
-			info["trace"].(map[string]interface{})["root_span"] = map[string]interface{}{
-				"id":   context.TraceData.RootSpan.SpanID,
-				"name": context.TraceData.RootSpan.Name,
+			if traceInfo, ok := info["trace"].(map[string]interface{}); ok {
+				traceInfo["root_span"] = map[string]interface{}{
+					"id":   context.TraceData.RootSpan.SpanID,
+					"name": context.TraceData.RootSpan.Name,
+				}
 			}
 		}
 	}

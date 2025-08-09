@@ -648,7 +648,7 @@ export class UserManagementService {
      *     "and": [
      *       {"!=": [{"var": "request.body.password"}, null]},
      *       {">=": [{"strlen": [{"var": "request.body.password"}]}, 8]},
-     *       {"regex": [{"var": "request.body.password"}, ".*\\\[A-Z\\].*"]},
+     *       {"regex": [{"var": "request.body.password"}, ".*[A-Z].*"]},
      *       {"regex": [{"var": "request.body.password"}, ".*[0-9].*"]}
      *     ]
      *   }

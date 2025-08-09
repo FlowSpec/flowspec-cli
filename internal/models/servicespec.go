@@ -168,19 +168,7 @@ func (td *TraceData) BuildSpanTree() error {
 	return nil
 }
 
-// buildSpanTreeRecursive recursively builds the span tree
-func (td *TraceData) buildSpanTreeRecursive(node *SpanNode) {
-	for _, span := range td.Spans {
-		if span.ParentID == node.Span.SpanID {
-			childNode := &SpanNode{
-				Span:     span,
-				Children: []*SpanNode{},
-			}
-			node.Children = append(node.Children, childNode)
-			td.buildSpanTreeRecursive(childNode)
-		}
-	}
-}
+
 
 // GetDuration returns the duration of the span in nanoseconds
 func (s *Span) GetDuration() int64 {

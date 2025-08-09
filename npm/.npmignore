@@ -1,0 +1,63 @@
+# Development files
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+__tests__/
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git files
+.git/
+.gitignore
+
+# CI/CD files
+.github/
+.travis.yml
+.circleci/
+
+# Documentation (except README.md)
+docs/
+*.md
+!README.md
+
+# Source files not needed in package
+src/
+examples/
+
+# Build artifacts
+build/
+dist/
+target/
+
+# Dependencies (will be installed by npm)
+node_modules/
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary directories
+tmp/
+temp/

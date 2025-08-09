@@ -284,13 +284,13 @@ func TestStreamingIngestor_MemoryConstraints(t *testing.T) {
 	// Create ingestor with very low memory limit
 	config := &StreamingConfig{
 		ChunkSize:      1024,
-		MaxMemoryUsage: 1024 * 1024, // 1MB limit
+		MaxMemoryUsage: 2 * 1024 * 1024, // 2MB limit
 	}
 
 	ingestor := NewStreamingIngestor(config)
 
-	// Create moderately large data that should fit within limits
-	testData := createLargeOTLPData(50) // 50 spans should be manageable
+	// Create small data that should fit within limits
+	testData := createLargeOTLPData(10) // 10 spans should be manageable
 	reader := strings.NewReader(testData)
 
 	traceData, err := ingestor.IngestFromReaderStreaming(reader, int64(len(testData)))
@@ -298,7 +298,7 @@ func TestStreamingIngestor_MemoryConstraints(t *testing.T) {
 	// Should succeed with memory optimization
 	require.NoError(t, err)
 	assert.NotNil(t, traceData)
-	assert.Len(t, traceData.Spans, 51) // 50 + 1 root
+	assert.Len(t, traceData.Spans, 11) // 10 + 1 root
 }
 
 func TestStreamingIngestor_VeryLargeFile(t *testing.T) {

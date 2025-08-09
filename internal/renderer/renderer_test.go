@@ -307,15 +307,15 @@ func TestValidateJSONOutput(t *testing.T) {
 		},
 		{
 			name:        "malformed JSON",
-			jsonOutput:  `{\"invalid\": json}`, // Corrected escaping for inner quotes
+			jsonOutput:  `{"invalid": json}`,
 			expectError: true,
 			errorMsg:    "JSON is not well-formed",
 		},
 		{
 			name:        "valid JSON but wrong structure",
-			jsonOutput:  `{\"wrong\": \"structure\"}`, // Corrected escaping for inner quotes
+			jsonOutput:  `{"wrong": "structure"}`,
 			expectError: true,
-			errorMsg:    "JSON structure validation failed",
+			errorMsg:    "missing required field",
 		},
 	}
 

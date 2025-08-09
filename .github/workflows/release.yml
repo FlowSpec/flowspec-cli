@@ -150,3 +150,221 @@ jobs:
         echo "✅ Release v${{ env.VERSION }} created successfully!"
         echo "📦 Assets uploaded to GitHub Release"
         echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
+
+  publish-npm:
+    name: Publish NPM Package
+    needs: release
+    runs-on: ubuntu-latest
+    if: success()
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Set version from tag
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+    
+    - name: Set version from input
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+    
+    - name: Validate NPM package structure
+      run: |
+        if [ ! -f "npm/package.json" ]; then
+          echo "❌ NPM package.json not found at npm/package.json"
+          exit 1
+        fi
+        if [ ! -f "npm/install.js" ]; then
+          echo "❌ NPM install script not found at npm/install.js"
+          exit 1
+        fi
+        if [ ! -d "npm/lib" ]; then
+          echo "❌ NPM lib directory not found at npm/lib"
+          exit 1
+        fi
+        if [ ! -d "npm/bin" ]; then
+          echo "❌ NPM bin directory not found at npm/bin"
+          exit 1
+        fi
+        echo "✅ NPM package structure validation passed"
+    
+    - name: Update NPM package version
+      run: |
+        cd npm
+        echo "📝 Updating package.json version to ${{ env.VERSION }}"
+        
+        # Backup original package.json
+        cp package.json package.json.backup
+        
+        # Update version using npm version command (no git tag creation)
+        npm version ${{ env.VERSION }} --no-git-tag-version --allow-same-version
+        
+        # Verify version was updated correctly
+        PACKAGE_VERSION=$(node -p "require('./package.json').version")
+        if [ "$PACKAGE_VERSION" != "${{ env.VERSION }}" ]; then
+          echo "❌ Version mismatch: expected ${{ env.VERSION }}, got $PACKAGE_VERSION"
+          exit 1
+        fi
+        
+        echo "✅ Package version updated to $PACKAGE_VERSION"
+    
+    - name: Install NPM dependencies
+      run: |
+        cd npm
+        echo "📦 Installing NPM dependencies..."
+        npm ci --only=production
+        echo "✅ Dependencies installed"
+    
+    - name: Run NPM package tests
+      run: |
+        cd npm
+        echo "🧪 Running NPM package tests..."
+        npm test
+        echo "✅ NPM package tests passed"
+    
+    - name: Validate package before publish
+      run: |
+        cd npm
+        echo "🔍 Validating package before publish..."
+        
+        # Run npm pack to simulate publishing
+        npm pack --dry-run
+        
+        # Check package size
+        PACKAGE_SIZE=$(npm pack --dry-run 2>&1 | grep "package size" | awk '{print $3}' | sed 's/B//')
+        if [ -n "$PACKAGE_SIZE" ] && [ "$PACKAGE_SIZE" -gt 10485760 ]; then  # 10MB limit
+          echo "⚠️  Package size is large: $PACKAGE_SIZE bytes"
+        fi
+        
+        echo "✅ Package validation passed"
+    
+    - name: Publish to NPM
+      id: npm_publish
+      run: |
+        cd npm
+        echo "🚀 Publishing package to NPM..."
+        
+        # Set npm configuration for better error handling
+        npm config set audit-level moderate
+        npm config set fund false
+        
+        # Publish with detailed logging
+        npm publish --access public --verbose 2>&1 | tee publish.log
+        
+        # Check if publish was successful
+        if [ $? -eq 0 ]; then
+          echo "✅ Package published successfully to NPM"
+          echo "published=true" >> $GITHUB_OUTPUT
+          
+          # Get the published package info
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          echo "📦 Package: $PACKAGE_NAME@${{ env.VERSION }}"
+          echo "🔗 NPM URL: https://www.npmjs.com/package/$PACKAGE_NAME"
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+        else
+          echo "❌ NPM publish failed"
+          echo "published=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    
+    - name: Verify published package
+      if: steps.npm_publish.outputs.published == 'true'
+      run: |
+        echo "🔍 Verifying published package..."
+        PACKAGE_NAME="${{ steps.npm_publish.outputs.package_name }}"
+        
+        # Wait a moment for NPM registry to update
+        sleep 10
+        
+        # Check if package is available on NPM registry
+        if npm view "$PACKAGE_NAME@${{ env.VERSION }}" version >/dev/null 2>&1; then
+          echo "✅ Package verified on NPM registry"
+          echo "📦 $PACKAGE_NAME@${{ env.VERSION }} is now available"
+        else
+          echo "⚠️  Package not immediately available on registry (this is normal)"
+          echo "📝 It may take a few minutes for the package to appear"
+        fi
+    
+    - name: Create NPM publish summary
+      if: always()
+      run: |
+        echo "## NPM Publish Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.npm_publish.outputs.published }}" == "true" ]; then
+          echo "✅ **Status**: Successfully published" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Package**: ${{ steps.npm_publish.outputs.package_name }}@${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **NPM URL**: https://www.npmjs.com/package/${{ steps.npm_publish.outputs.package_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "npm install ${{ steps.npm_publish.outputs.package_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "# or" >> $GITHUB_STEP_SUMMARY
+          echo "npx ${{ steps.npm_publish.outputs.package_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Status**: Publish failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "- Check NPM_TOKEN secret is configured correctly" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify package.json configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- Check for version conflicts on NPM registry" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Rollback on failure
+      if: failure()
+      run: |
+        echo "🔄 Performing rollback procedures..."
+        
+        cd npm
+        
+        # Restore original package.json if backup exists
+        if [ -f "package.json.backup" ]; then
+          echo "📝 Restoring original package.json"
+          mv package.json.backup package.json
+        fi
+        
+        # Log failure details for debugging
+        echo "❌ NPM publish failed for version ${{ env.VERSION }}"
+        echo "🔍 Failure occurred during NPM package publishing"
+        echo "📋 Troubleshooting steps:"
+        echo "  1. Check NPM_TOKEN secret configuration"
+        echo "  2. Verify package.json syntax and metadata"
+        echo "  3. Check for existing version on NPM registry"
+        echo "  4. Review NPM package structure and files"
+        echo "  5. Check network connectivity to NPM registry"
+        
+        # Create failure summary
+        echo "## NPM Publish Failed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "❌ The NPM package publish failed for version ${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Possible Causes" >> $GITHUB_STEP_SUMMARY
+        echo "- NPM_TOKEN secret not configured or expired" >> $GITHUB_STEP_SUMMARY
+        echo "- Version ${{ env.VERSION }} already exists on NPM" >> $GITHUB_STEP_SUMMARY
+        echo "- Package validation failed" >> $GITHUB_STEP_SUMMARY
+        echo "- Network issues with NPM registry" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review the workflow logs above for specific error details" >> $GITHUB_STEP_SUMMARY
+        echo "2. Fix the identified issue" >> $GITHUB_STEP_SUMMARY
+        echo "3. Re-run the workflow or manually publish the package" >> $GITHUB_STEP_SUMMARY
+        
+        exit 1

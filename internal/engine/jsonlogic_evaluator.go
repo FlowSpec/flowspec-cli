@@ -94,7 +94,11 @@ func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]inte
 	// Apply JSONLogic with timeout protection
 	result, err := evaluator.applyWithTimeout(processedAssertion, data)
 	if err != nil {
-		assertionJSON, _ := json.Marshal(assertion)
+		assertionJSON, marshalErr := json.Marshal(assertion)
+		if marshalErr != nil {
+			// Handle case where even marshaling the assertion fails
+			assertionJSON = []byte("invalid_assertion_format")
+		}
 		return &AssertionResult{
 				Passed:     false,
 				Expected:   true,
@@ -109,7 +113,10 @@ func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]inte
 	// Convert result to boolean
 	passed := evaluator.convertToBool(result)
 
-	assertionJSON, _ := json.Marshal(assertion)
+	assertionJSON, marshalErr := json.Marshal(assertion)
+	if marshalErr != nil {
+		assertionJSON = []byte("invalid_assertion_format")
+	}
 	return &AssertionResult{
 			Passed:     passed,
 			Expected:   true,
@@ -560,6 +567,7 @@ func (evaluator *JSONLogicEvaluator) preprocessAssertion(assertion map[string]in
 		if !jsonLogicOps[key] {
 			nonOpKeys++
 			// Convert this condition to a proper JSONLogic expression
+			// The key represents a variable path (e.g., "request.id")
 			conditions = append(conditions, evaluator.convertConditionToJSONLogic(key, value))
 		} else {
 			// It's a JSONLogic operator at the top level, keep as-is
@@ -588,11 +596,74 @@ func (evaluator *JSONLogicEvaluator) preprocessAssertion(assertion map[string]in
 }
 
 // convertConditionToJSONLogic converts a single condition to JSONLogic format
-func (evaluator *JSONLogicEvaluator) convertConditionToJSONLogic(name string, condition interface{}) interface{} {
+func (evaluator *JSONLogicEvaluator) convertConditionToJSONLogic(varPath string, condition interface{}) interface{} {
 	conditionMap, ok := condition.(map[string]interface{})
 	if !ok {
 		// If it's not a map, return as-is
 		return condition
+	}
+
+	// Check if this is already a valid JSONLogic expression
+	jsonLogicOps := map[string]bool{
+		"==": true, "!=": true, ">": true, "<": true, ">=": true, "<=": true,
+		"and": true, "or": true, "not": true, "if": true, "in": true,
+		"var": true, "missing": true, "missing_some": true, "match": true,
+	}
+
+	// If the condition contains JSONLogic operators, check if it needs variable substitution
+	hasJsonLogicOps := false
+	for op := range conditionMap {
+		if jsonLogicOps[op] {
+			hasJsonLogicOps = true
+			break
+		}
+	}
+
+	if hasJsonLogicOps {
+		// This is already a JSONLogic expression, but we need to check if it needs variable substitution
+		result := make(map[string]interface{})
+		for op, value := range conditionMap {
+			if jsonLogicOps[op] {
+				// Handle JSONLogic operators
+				switch op {
+				case "==", "!=", ">", "<", ">=", "<=":
+					// These operators expect [var, value] format
+					if valueArray, ok := value.([]interface{}); ok && len(valueArray) == 2 {
+						// Check if first element needs to be converted to var reference
+						firstElem := valueArray[0]
+						if varRef, ok := firstElem.(map[string]interface{}); ok {
+							if varName, hasVar := varRef["var"]; hasVar {
+								// Use the existing var reference
+								result[op] = []interface{}{map[string]interface{}{"var": varName}, valueArray[1]}
+							} else {
+								// Convert to var reference using the variable path
+								result[op] = []interface{}{map[string]interface{}{"var": varPath}, valueArray[1]}
+							}
+						} else {
+							// First element is not a var reference, use the variable path
+							result[op] = []interface{}{map[string]interface{}{"var": varPath}, valueArray[1]}
+						}
+					} else {
+						// Single value, assume it's the comparison value
+						result[op] = []interface{}{map[string]interface{}{"var": varPath}, value}
+					}
+				case "in":
+					// "in" operator: {"in": [needle, haystack]}
+					if valueArray, ok := value.([]interface{}); ok && len(valueArray) == 2 {
+						result[op] = []interface{}{valueArray[0], valueArray[1]}
+					} else {
+						result[op] = []interface{}{map[string]interface{}{"var": varPath}, value}
+					}
+				default:
+					// For other operators, keep as-is
+					result[op] = value
+				}
+			} else {
+				// Non-JSONLogic key, keep as-is
+				result[op] = value
+			}
+		}
+		return result
 	}
 
 	// Handle special operators that need conversion
@@ -602,10 +673,10 @@ func (evaluator *JSONLogicEvaluator) convertConditionToJSONLogic(name string, co
 		switch op {
 		case "==", "!=", ">", "<", ">=", "<=":
 			// These operators need array format: {"op": [var, value]}
-			result[op] = []interface{}{map[string]interface{}{"var": name}, value}
+			result[op] = []interface{}{map[string]interface{}{"var": varPath}, value}
 		case "in":
 			// "in" operator: {"in": [needle, haystack]}
-			result[op] = []interface{}{value, map[string]interface{}{"var": name}}
+			result[op] = []interface{}{map[string]interface{}{"var": varPath}, value}
 		default:
 			// For other operators, keep as-is but ensure proper format
 			result[op] = value
