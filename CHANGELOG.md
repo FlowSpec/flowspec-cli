@@ -139,7 +139,7 @@ Special thanks to the following open source projects and communities:
 
 ## Security Updates
 
-There are currently no security-related updates. If you find a security issue, please send an email to security@example.com.
+There are currently no security-related updates. If you find a security issue, please send an email to youming@flowspec.org.
 
 ---
 

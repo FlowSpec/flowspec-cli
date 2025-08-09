@@ -28,7 +28,8 @@ type PerformanceMonitor struct {
 	metrics         map[string]interface{}
 	memoryPeakUsage uint64
 	memoryMutex     sync.RWMutex
-	stopChan        chan struct{}
+	ctx             context.Context
+	cancel          context.CancelFunc
 	isMonitoring    bool
 	monitorMutex    sync.Mutex
 }
@@ -65,7 +66,7 @@ func (pm *PerformanceMonitor) Start() {
 
 	pm.startTime = time.Now()
 	pm.isMonitoring = true
-	pm.stopChan = make(chan struct{})
+	pm.ctx, pm.cancel = context.WithCancel(context.Background())
 
 	// Record initial memory usage
 	var initialMem runtime.MemStats
@@ -91,9 +92,9 @@ func (pm *PerformanceMonitor) Stop() *PerformanceMetrics {
 	}
 
 	// Stop monitoring
-	if pm.stopChan != nil {
-		close(pm.stopChan)
-		pm.stopChan = nil
+	if pm.cancel != nil {
+		pm.cancel()
+		pm.cancel = nil
 	}
 	pm.isMonitoring = false
 
@@ -111,12 +112,15 @@ func (pm *PerformanceMonitor) Stop() *PerformanceMetrics {
 	peakMemory := pm.memoryPeakUsage
 	pm.memoryMutex.RUnlock()
 
+	// Safely get initial memory
+	initialMemory, _ := pm.metrics["initial_memory"].(uint64)
+
 	// Create metrics object
 	metrics := &PerformanceMetrics{
 		ExecutionTime:   executionTime,
 		PeakMemoryUsage: peakMemory,
 		PeakMemoryMB:    float64(peakMemory) / (1024 * 1024),
-		InitialMemory:   pm.metrics["initial_memory"].(uint64),
+		InitialMemory:   initialMemory,
 		FinalMemory:     finalMem.Alloc,
 		GCStats:         gcStats,
 		CustomMetrics:   make(map[string]interface{}),
@@ -192,7 +196,7 @@ func (pm *PerformanceMonitor) monitorMemory() {
 
 	for {
 		select {
-		case <-pm.stopChan:
+		case <-pm.ctx.Done():
 			return
 		case <-ticker.C:
 			var m runtime.MemStats

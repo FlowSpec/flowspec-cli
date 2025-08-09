@@ -625,8 +625,8 @@ func (pc *ParseCache) Get(filePath string, modTime time.Time) (*CacheEntry, bool
 		return nil, false
 	}
 
-	pc.mu.RLock()
-	defer pc.mu.RUnlock()
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
 
 	entry, exists := pc.entries[filePath]
 	if !exists {

@@ -28,6 +28,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// File extension constants
+const (
+	javaExtension = ".java"
+)
+
 // BaseFileParser provides common functionality for parsing ServiceSpec annotations
 type BaseFileParser struct {
 	language        SupportedLanguage
@@ -192,8 +197,8 @@ func (bp *BaseFileParser) isServiceSpecStart(line string) bool {
 	}
 
 	for _, pattern := range patterns {
-		matched, _ := regexp.MatchString(pattern, line)
-		if matched {
+		matched, err := regexp.MatchString(pattern, line)
+		if err == nil && matched {
 			return true
 		}
 	}
@@ -469,7 +474,7 @@ func (bp *BaseFileParser) CanParse(filename string) bool {
 
 	switch bp.language {
 	case LanguageJava:
-		return ext == ".java"
+		return ext == javaExtension
 	case LanguageTypeScript:
 		return ext == ".ts" || ext == ".tsx"
 	case LanguageGo:
