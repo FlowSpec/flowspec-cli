@@ -57,6 +57,9 @@ func TestNewReportRendererWithConfig(t *testing.T) {
 }
 
 func TestRenderHuman_EmptyReport(t *testing.T) {
+	// Set test language environment variable to simulate entry point language detection
+	t.Setenv("FLOWSPEC_LANG", "zh")
+	
 	// Use renderer without colors for easier testing
 	config := DefaultRendererConfig()
 	config.ColorOutput = false
@@ -74,6 +77,9 @@ func TestRenderHuman_EmptyReport(t *testing.T) {
 }
 
 func TestRenderHuman_SuccessfulReport(t *testing.T) {
+	// Set test language environment variable to simulate entry point language detection
+	t.Setenv("FLOWSPEC_LANG", "zh")
+	
 	// Use renderer without colors for easier testing
 	config := DefaultRendererConfig()
 	config.ColorOutput = false
@@ -94,6 +100,9 @@ func TestRenderHuman_SuccessfulReport(t *testing.T) {
 }
 
 func TestRenderHuman_FailedReport(t *testing.T) {
+	// Set test language environment variable to simulate entry point language detection
+	t.Setenv("FLOWSPEC_LANG", "zh")
+	
 	// Use renderer without colors for easier testing
 	config := DefaultRendererConfig()
 	config.ColorOutput = false
@@ -113,6 +122,9 @@ func TestRenderHuman_FailedReport(t *testing.T) {
 }
 
 func TestRenderHuman_MixedReport(t *testing.T) {
+	// Set test language environment variable to simulate entry point language detection
+	t.Setenv("FLOWSPEC_LANG", "zh")
+	
 	// Use renderer without colors for easier testing
 	config := DefaultRendererConfig()
 	config.ColorOutput = false
@@ -136,6 +148,9 @@ func TestRenderHuman_MixedReport(t *testing.T) {
 }
 
 func TestRenderHuman_WithPerformanceMetrics(t *testing.T) {
+	// Set test language environment variable to simulate entry point language detection
+	t.Setenv("FLOWSPEC_LANG", "zh")
+	
 	// Use renderer without colors for easier testing
 	config := DefaultRendererConfig()
 	config.ColorOutput = false
@@ -162,6 +177,9 @@ func TestRenderHuman_WithPerformanceMetrics(t *testing.T) {
 }
 
 func TestRenderHuman_WithoutColors(t *testing.T) {
+	// Set test language environment variable to simulate entry point language detection
+	t.Setenv("FLOWSPEC_LANG", "zh")
+	
 	config := DefaultRendererConfig()
 	config.ColorOutput = false
 	renderer := NewReportRendererWithConfig(config)
@@ -178,6 +196,9 @@ func TestRenderHuman_WithoutColors(t *testing.T) {
 }
 
 func TestRenderHuman_DetailedErrors(t *testing.T) {
+	// Set test language environment variable to simulate entry point language detection
+	t.Setenv("FLOWSPEC_LANG", "zh")
+	
 	// Use renderer without colors for easier testing
 	config := DefaultRendererConfig()
 	config.ColorOutput = false
