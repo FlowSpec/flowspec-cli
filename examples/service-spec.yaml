@@ -1,0 +1,55 @@
+apiVersion: flowspec/v1alpha1
+kind: ServiceSpec
+metadata:
+  name: user-service
+  version: v1.0.0
+spec:
+  endpoints:
+    - path: /api/users/{id}
+      operations:
+        - method: GET
+          responses:
+            statusRanges: ["2xx", "4xx"]
+            aggregation: "range"
+          required:
+            headers: ["authorization"]
+            query: []
+          optional:
+            headers: ["accept-language"]
+            query: ["include"]
+          stats:
+            supportCount: 123
+            firstSeen: "2025-08-01T12:00:00Z"
+            lastSeen: "2025-08-10T12:00:00Z"
+        - method: PUT
+          responses:
+            statusCodes: [200, 400, 500]
+            aggregation: "exact"
+          required:
+            headers: ["authorization", "content-type"]
+            query: []
+          optional:
+            headers: []
+            query: []
+    - path: /api/users
+      operations:
+        - method: GET
+          responses:
+            statusRanges: ["2xx"]
+            aggregation: "range"
+          required:
+            headers: ["authorization"]
+            query: []
+          optional:
+            headers: ["accept-language"]
+            query: ["limit", "offset", "sort"]
+        - method: POST
+          responses:
+            statusCodes: [201, 400, 409]
+            aggregation: "exact"
+          required:
+            headers: ["authorization", "content-type"]
+            query: []
+          optional:
+            headers: []
+            query: []

@@ -50,6 +50,7 @@ const (
 	LanguageJava       SupportedLanguage = "java"
 	LanguageTypeScript SupportedLanguage = "typescript"
 	LanguageGo         SupportedLanguage = "go"
+	LanguageYAML       SupportedLanguage = "yaml"
 )
 
 // FileType represents the mapping between file extensions and languages
@@ -489,6 +490,10 @@ func getSupportedFileTypes() []FileType {
 		{
 			Extensions: []string{".go"},
 			Language:   LanguageGo,
+		},
+		{
+			Extensions: []string{".yaml", ".yml"},
+			Language:   LanguageYAML,
 		},
 	}
 }

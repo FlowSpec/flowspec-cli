@@ -17,16 +17,86 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // ServiceSpec represents a service specification with preconditions and postconditions
+// Supports both legacy format (with OperationID, Preconditions, Postconditions) 
+// and new YAML format (with APIVersion, Kind, Metadata, Spec)
 type ServiceSpec struct {
-	OperationID    string                 `json:"operationId"`
-	Description    string                 `json:"description"`
-	Preconditions  map[string]interface{} `json:"preconditions"`
-	Postconditions map[string]interface{} `json:"postconditions"`
-	SourceFile     string                 `json:"sourceFile"`
-	LineNumber     int                    `json:"lineNumber"`
+	// New YAML format fields
+	APIVersion string                `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
+	Kind       string                `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Metadata   *ServiceSpecMetadata  `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Spec       *ServiceSpecDefinition `json:"spec,omitempty" yaml:"spec,omitempty"`
+	
+	// Legacy format fields (maintained for backward compatibility)
+	OperationID    string                 `json:"operationId,omitempty"`
+	Description    string                 `json:"description,omitempty"`
+	Preconditions  map[string]interface{} `json:"preconditions,omitempty"`
+	Postconditions map[string]interface{} `json:"postconditions,omitempty"`
+	SourceFile     string                 `json:"sourceFile,omitempty"`
+	LineNumber     int                    `json:"lineNumber,omitempty"`
+}
+
+// ServiceSpecMetadata contains metadata for the service specification
+type ServiceSpecMetadata struct {
+	Name    string `json:"name" yaml:"name"`
+	Version string `json:"version" yaml:"version"`
+}
+
+// ServiceSpecDefinition contains the actual specification definition
+type ServiceSpecDefinition struct {
+	Endpoints []EndpointSpec `json:"endpoints" yaml:"endpoints"`
+}
+
+// EndpointSpec defines a service endpoint with method-level operations
+type EndpointSpec struct {
+	Path       string          `json:"path" yaml:"path"`
+	Operations []OperationSpec `json:"operations" yaml:"operations"`
+	Stats      *EndpointStats  `json:"stats,omitempty" yaml:"stats,omitempty"`
+}
+
+// OperationSpec defines a specific HTTP operation (method) for an endpoint
+type OperationSpec struct {
+	Method    string             `json:"method" yaml:"method"`
+	Responses ResponseSpec       `json:"responses" yaml:"responses"`
+	Required  RequiredFieldsSpec `json:"required" yaml:"required"`
+	Optional  OptionalFieldsSpec `json:"optional,omitempty" yaml:"optional,omitempty"`
+	Stats     *OperationStats    `json:"stats,omitempty" yaml:"stats,omitempty"`
+}
+
+// ResponseSpec defines expected response characteristics
+type ResponseSpec struct {
+	StatusCodes  []int    `json:"statusCodes,omitempty" yaml:"statusCodes,omitempty"`
+	StatusRanges []string `json:"statusRanges,omitempty" yaml:"statusRanges,omitempty"` // e.g., ["2xx","4xx"]
+	Aggregation  string   `json:"aggregation,omitempty" yaml:"aggregation,omitempty"`  // "range"|"exact"|"auto"
+}
+
+// RequiredFieldsSpec defines required query parameters and headers
+type RequiredFieldsSpec struct {
+	Query   []string `json:"query" yaml:"query"`
+	Headers []string `json:"headers" yaml:"headers"`
+}
+
+// OptionalFieldsSpec defines optional query parameters and headers
+type OptionalFieldsSpec struct {
+	Query   []string `json:"query" yaml:"query"`
+	Headers []string `json:"headers" yaml:"headers"`
+}
+
+// EndpointStats contains statistics for an endpoint
+type EndpointStats struct {
+	SupportCount int       `json:"supportCount"`
+	FirstSeen    time.Time `json:"firstSeen"`
+	LastSeen     time.Time `json:"lastSeen"`
+}
+
+// OperationStats contains statistics for a specific operation
+type OperationStats struct {
+	SupportCount int       `json:"supportCount"`
+	FirstSeen    time.Time `json:"firstSeen"`
+	LastSeen     time.Time `json:"lastSeen"`
 }
 
 // ParseResult contains the results of parsing ServiceSpecs from source files
@@ -43,8 +113,63 @@ type ParseError struct {
 	Message string `json:"message"`
 }
 
+// IsYAMLFormat returns true if this ServiceSpec uses the new YAML format
+func (s *ServiceSpec) IsYAMLFormat() bool {
+	return s.APIVersion != "" && s.Kind != "" && s.Metadata != nil && s.Spec != nil
+}
+
+// IsLegacyFormat returns true if this ServiceSpec uses the legacy format
+func (s *ServiceSpec) IsLegacyFormat() bool {
+	return s.OperationID != ""
+}
+
 // Validate checks if the ServiceSpec has all required fields
 func (s *ServiceSpec) Validate() error {
+	if s.IsYAMLFormat() {
+		return s.validateYAMLFormat()
+	} else if s.IsLegacyFormat() {
+		return s.validateLegacyFormat()
+	} else {
+		return fmt.Errorf("ServiceSpec must be either YAML format (with apiVersion, kind, metadata, spec) or legacy format (with operationId)")
+	}
+}
+
+// validateYAMLFormat validates the new YAML format
+func (s *ServiceSpec) validateYAMLFormat() error {
+	if s.APIVersion == "" {
+		return fmt.Errorf("apiVersion is required for YAML format")
+	}
+	if s.Kind == "" {
+		return fmt.Errorf("kind is required for YAML format")
+	}
+	if s.Metadata == nil {
+		return fmt.Errorf("metadata is required for YAML format")
+	}
+	if s.Metadata.Name == "" {
+		return fmt.Errorf("metadata.name is required")
+	}
+	if s.Metadata.Version == "" {
+		return fmt.Errorf("metadata.version is required")
+	}
+	if s.Spec == nil {
+		return fmt.Errorf("spec is required for YAML format")
+	}
+	if len(s.Spec.Endpoints) == 0 {
+		return fmt.Errorf("spec.endpoints cannot be empty")
+	}
+	
+	// Validate each endpoint
+	for i, endpoint := range s.Spec.Endpoints {
+		if err := endpoint.Validate(); err != nil {
+			return fmt.Errorf("spec.endpoints[%d]: %w", i, err)
+		}
+	}
+	
+	return nil
+}
+
+// validateLegacyFormat validates the legacy format
+func (s *ServiceSpec) validateLegacyFormat() error {
 	if s.OperationID == "" {
 		return fmt.Errorf("operationId is required")
 	}
@@ -57,6 +182,99 @@ func (s *ServiceSpec) Validate() error {
 	if s.LineNumber <= 0 {
 		return fmt.Errorf("lineNumber must be positive")
 	}
+	return nil
+}
+
+// Validate validates an EndpointSpec
+func (e *EndpointSpec) Validate() error {
+	if e.Path == "" {
+		return fmt.Errorf("path is required")
+	}
+	if len(e.Operations) == 0 {
+		return fmt.Errorf("operations cannot be empty")
+	}
+	
+	// Validate each operation
+	for i, operation := range e.Operations {
+		if err := operation.Validate(); err != nil {
+			return fmt.Errorf("operations[%d]: %w", i, err)
+		}
+	}
+	
+	return nil
+}
+
+// Validate validates an OperationSpec
+func (o *OperationSpec) Validate() error {
+	if o.Method == "" {
+		return fmt.Errorf("method is required")
+	}
+	
+	// Validate method is a valid HTTP method
+	validMethods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+	methodValid := false
+	for _, validMethod := range validMethods {
+		if o.Method == validMethod {
+			methodValid = true
+			break
+		}
+	}
+	if !methodValid {
+		return fmt.Errorf("method '%s' is not a valid HTTP method", o.Method)
+	}
+	
+	// Validate responses
+	if err := o.Responses.Validate(); err != nil {
+		return fmt.Errorf("responses: %w", err)
+	}
+	
+	return nil
+}
+
+// Validate validates a ResponseSpec
+func (r *ResponseSpec) Validate() error {
+	// Must have either StatusCodes or StatusRanges, but not necessarily both
+	if len(r.StatusCodes) == 0 && len(r.StatusRanges) == 0 {
+		return fmt.Errorf("must specify either statusCodes or statusRanges")
+	}
+	
+	// Validate status codes are in valid range
+	for _, code := range r.StatusCodes {
+		if code < 100 || code > 599 {
+			return fmt.Errorf("status code %d is not in valid range (100-599)", code)
+		}
+	}
+	
+	// Validate status ranges
+	validRanges := []string{"1xx", "2xx", "3xx", "4xx", "5xx"}
+	for _, rangeStr := range r.StatusRanges {
+		rangeValid := false
+		for _, validRange := range validRanges {
+			if rangeStr == validRange {
+				rangeValid = true
+				break
+			}
+		}
+		if !rangeValid {
+			return fmt.Errorf("status range '%s' is not valid (must be one of: 1xx, 2xx, 3xx, 4xx, 5xx)", rangeStr)
+		}
+	}
+	
+	// Validate aggregation strategy
+	if r.Aggregation != "" {
+		validAggregations := []string{"range", "exact", "auto"}
+		aggregationValid := false
+		for _, validAggregation := range validAggregations {
+			if r.Aggregation == validAggregation {
+				aggregationValid = true
+				break
+			}
+		}
+		if !aggregationValid {
+			return fmt.Errorf("aggregation '%s' is not valid (must be one of: range, exact, auto)", r.Aggregation)
+		}
+	}
+	
 	return nil
 }
 
