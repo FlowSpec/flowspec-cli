@@ -72,11 +72,27 @@ func NewReportRenderer() *DefaultReportRenderer {
 	}
 }
 
+// NewReportRendererWithLanguage creates a new report renderer with specified language
+func NewReportRendererWithLanguage(language i18n.SupportedLanguage) *DefaultReportRenderer {
+	return &DefaultReportRenderer{
+		config:    DefaultRendererConfig(),
+		localizer: i18n.NewLocalizer(language),
+	}
+}
+
 // NewReportRendererWithConfig creates a new report renderer with custom configuration
 func NewReportRendererWithConfig(config *RendererConfig) *DefaultReportRenderer {
 	return &DefaultReportRenderer{
 		config:    config,
 		localizer: i18n.NewLocalizerFromEnv(),
+	}
+}
+
+// NewReportRendererWithConfigAndLanguage creates a new report renderer with custom configuration and language
+func NewReportRendererWithConfigAndLanguage(config *RendererConfig, language i18n.SupportedLanguage) *DefaultReportRenderer {
+	return &DefaultReportRenderer{
+		config:    config,
+		localizer: i18n.NewLocalizer(language),
 	}
 }
 
@@ -95,17 +111,17 @@ func (r *DefaultReportRenderer) RenderHuman(report *models.AlignmentReport) (str
 	var output strings.Builder
 
 	// Header with enhanced styling
-	r.writeColoredHeader(&output, "FlowSpec 验证报告")
+	r.writeColoredHeader(&output, r.localizer.T("report.title"))
 	output.WriteString("==================================================\n\n")
 
 	// Summary statistics with color coding
-	r.writeColoredSection(&output, "📊 汇总统计")
-	output.WriteString(fmt.Sprintf("  总计: %s%d%s 个 ServiceSpec\n",
-		r.getColor("bold"), report.Summary.Total, r.getColor("reset")))
+	r.writeColoredSection(&output, r.localizer.T("report.summary"))
+	output.WriteString(fmt.Sprintf("  "+r.localizer.T("summary.total")+"\n",
+		report.Summary.Total))
 
 	// Success count with green color
-	output.WriteString(fmt.Sprintf("  %s%s 成功: %s%d%s 个%s",
-		r.getColor("green"), IconSuccess, r.getColor("bold"), report.Summary.Success, r.getColor("reset"), r.getColor("reset")))
+	output.WriteString(fmt.Sprintf("  %s%s %s%s",
+		r.getColor("green"), IconSuccess, r.localizer.T("summary.success", report.Summary.Success), r.getColor("reset")))
 	if report.Summary.Total > 0 {
 		successRate := float64(report.Summary.Success) / float64(report.Summary.Total) * 100
 		output.WriteString(fmt.Sprintf(" (%.1f%%)", successRate))
@@ -114,30 +130,30 @@ func (r *DefaultReportRenderer) RenderHuman(report *models.AlignmentReport) (str
 
 	// Failed count with red color
 	if report.Summary.Failed > 0 {
-		output.WriteString(fmt.Sprintf("  %s❌ 失败: %s%d%s 个%s",
-			r.getColor("red"), r.getColor("bold"), report.Summary.Failed, r.getColor("reset"), r.getColor("reset")))
+		output.WriteString(fmt.Sprintf("  %s❌ %s%s",
+			r.getColor("red"), r.localizer.T("summary.failed", report.Summary.Failed), r.getColor("reset")))
 		if report.Summary.Total > 0 {
 			failureRate := float64(report.Summary.Failed) / float64(report.Summary.Total) * 100
 			output.WriteString(fmt.Sprintf(" (%.1f%%)", failureRate))
 		}
 		output.WriteString("\n")
 	} else {
-		output.WriteString(fmt.Sprintf("  %s❌ 失败: %s0%s 个%s\n",
-			r.getColor("dim"), r.getColor("dim"), r.getColor("reset"), r.getColor("reset")))
+		output.WriteString(fmt.Sprintf("  %s❌ %s%s\n",
+			r.getColor("dim"), r.localizer.T("summary.failed", 0), r.getColor("reset")))
 	}
 
 	// Skipped count with yellow color
 	if report.Summary.Skipped > 0 {
-		output.WriteString(fmt.Sprintf("  %s⏭️  跳过: %s%d%s 个%s",
-			r.getColor("yellow"), r.getColor("bold"), report.Summary.Skipped, r.getColor("reset"), r.getColor("reset")))
+		output.WriteString(fmt.Sprintf("  %s⏭️ %s%s",
+			r.getColor("yellow"), r.localizer.T("summary.skipped", report.Summary.Skipped), r.getColor("reset")))
 		if report.Summary.Total > 0 {
 			skipRate := float64(report.Summary.Skipped) / float64(report.Summary.Total) * 100
 			output.WriteString(fmt.Sprintf(" (%.1f%%)", skipRate))
 		}
 		output.WriteString("\n")
 	} else {
-		output.WriteString(fmt.Sprintf("  %s⏭️  跳过: %s0%s 个%s\n",
-			r.getColor("dim"), r.getColor("dim"), r.getColor("reset"), r.getColor("reset")))
+		output.WriteString(fmt.Sprintf("  %s⏭️ %s%s\n",
+			r.getColor("dim"), r.localizer.T("summary.skipped", 0), r.getColor("reset")))
 	}
 
 	// Performance metrics with enhanced formatting
@@ -173,7 +189,7 @@ func (r *DefaultReportRenderer) RenderHuman(report *models.AlignmentReport) (str
 	}
 
 	output.WriteString("\n")
-	r.writeColoredSection(&output, "🔍 详细结果")
+	r.writeColoredSection(&output, r.localizer.T("report.details"))
 	output.WriteString("──────────────────────────────────────────────────\n\n")
 
 	// Group results by status for better readability

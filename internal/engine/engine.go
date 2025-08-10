@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/flowspec/flowspec-cli/internal/models"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // AlignmentEngine defines the interface for aligning ServiceSpecs with trace data

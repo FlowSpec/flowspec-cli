@@ -56,3 +56,11 @@ temp/
 
 # Binary name
 flowspec-cli
+
+# Performance reports and temporary test data
+performance_reports/
+*.prof
+*.pprof
+
+# Coverage reports in subdirectories
+coverage/

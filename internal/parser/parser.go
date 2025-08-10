@@ -15,7 +15,7 @@
 package parser
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"

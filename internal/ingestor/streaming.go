@@ -335,7 +335,7 @@ func (mm *MemoryMonitor) UpdateMemoryUsage() {
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	mm.currentMemory = m.Alloc
+	mm.currentMemory = int64(m.Alloc)
 }
 
 // ShouldTriggerGC returns true if garbage collection should be triggered

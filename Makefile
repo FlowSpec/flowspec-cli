@@ -19,16 +19,16 @@ GO_VERSION ?= $(shell go version | cut -d' ' -f3)
 
 # Build flags
 LDFLAGS = -ldflags "\
-	-X main.Version=$(VERSION) \
-	-X main.GitCommit=$(GIT_COMMIT) \
-	-X main.BuildDate=$(BUILD_DATE) \
+	-X main.version=$(VERSION) \
+	-X main.commit=$(GIT_COMMIT) \
+	-X main.date=$(BUILD_DATE) \
 	-s -w"
 
 # Release flags (optimized build)
 RELEASE_LDFLAGS = -ldflags "\
-	-X main.Version=$(VERSION) \
-	-X main.GitCommit=$(GIT_COMMIT) \
-	-X main.BuildDate=$(BUILD_DATE) \
+	-X main.version=$(VERSION) \
+	-X main.commit=$(GIT_COMMIT) \
+	-X main.date=$(BUILD_DATE) \
 	-s -w -extldflags '-static'"
 
 # ==============================================================================
@@ -50,6 +50,9 @@ clean: ## Clean build files and caches
 	@echo "Cleaning build files..."
 	rm -rf $(BUILD_DIR)
 	rm -f coverage.out coverage.html
+	rm -f $(BINARY_NAME)
+	rm -rf performance_reports/
+	rm -rf coverage/
 
 install: ## Install the binary to GOPATH
 	@echo "Installing $(BINARY_NAME)..."

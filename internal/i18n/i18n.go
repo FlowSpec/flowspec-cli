@@ -51,6 +51,8 @@ func NewLocalizer(lang SupportedLanguage) *Localizer {
 }
 
 // NewLocalizerFromEnv creates a new localizer based on environment variables
+// Deprecated: Use NewLocalizer with explicit language parameter instead
+// This function is kept for backward compatibility but should be avoided in new code
 func NewLocalizerFromEnv() *Localizer {
 	lang := detectLanguageFromEnv()
 	return NewLocalizer(lang)

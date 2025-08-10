@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/flowspec/flowspec-cli/internal/models"
