@@ -1,0 +1,73 @@
+name: FlowSpec Contract Validation
+on: 
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-contracts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: FlowSpec Verification
+        uses: flowspec/flowspec-action@v1
+        id: validation
+        with:
+          path: ./contracts/service-spec.yaml
+          trace: ./traces/integration-test.json
+          ci: true
+          version: latest
+          
+      - name: Upload FlowSpec Reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: flowspec-reports
+          path: artifacts/
+          retention-days: 30
+          
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: FlowSpec Contract Tests
+          path: artifacts/flowspec-report.xml
+          reporter: java-junit
+          
+      - name: Comment PR with Results
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request' && always()
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## FlowSpec Contract Validation Results\n\n';
+            
+            try {
+              const summary = JSON.parse(fs.readFileSync('artifacts/flowspec-summary.json', 'utf8'));
+              
+              if (summary.summary.failed === 0) {
+                comment += `✅ **All ${summary.summary.total} contract validations passed!**\n\n`;
+                comment += `- Duration: ${summary.summary.duration}ms\n`;
+                comment += `- Success Rate: 100%\n`;
+              } else {
+                comment += `❌ **${summary.summary.failed} of ${summary.summary.total} validations failed**\n\n`;
+                comment += `- Passed: ${summary.summary.success}\n`;
+                comment += `- Failed: ${summary.summary.failed}\n`;
+                comment += `- Skipped: ${summary.summary.skipped}\n`;
+                comment += `- Duration: ${summary.summary.duration}ms\n\n`;
+                comment += `Please check the detailed report in the artifacts.`;
+              }
+            } catch (error) {
+              comment += `⚠️ Could not parse validation results: ${error.message}`;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

@@ -1,0 +1,69 @@
+{
+  "traceID": "abc123def456",
+  "spans": [
+    {
+      "traceID": "abc123def456",
+      "spanID": "span001",
+      "operationName": "GET /api/users/123",
+      "startTime": 1722508215000000,
+      "duration": 50000,
+      "tags": [
+        {"key": "http.method", "value": "GET"},
+        {"key": "http.url", "value": "/api/users/123"},
+        {"key": "http.status_code", "value": 200}
+      ],
+      "process": {
+        "serviceName": "user-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "abc123def456",
+      "spanID": "span002",
+      "operationName": "POST /api/users",
+      "startTime": 1722508217000000,
+      "duration": 75000,
+      "tags": [
+        {"key": "http.method", "value": "POST"},
+        {"key": "http.url", "value": "/api/users"},
+        {"key": "http.status_code", "value": 201}
+      ],
+      "process": {
+        "serviceName": "user-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "abc123def456",
+      "spanID": "span003",
+      "operationName": "GET /api/orders/ord-12345",
+      "startTime": 1722508222000000,
+      "duration": 60000,
+      "tags": [
+        {"key": "http.method", "value": "GET"},
+        {"key": "http.url", "value": "/api/orders/ord-12345"},
+        {"key": "http.status_code", "value": 200}
+      ],
+      "process": {
+        "serviceName": "order-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "abc123def456",
+      "spanID": "span004",
+      "operationName": "GET /health",
+      "startTime": 1722508227000000,
+      "duration": 5000,
+      "tags": [
+        {"key": "http.method", "value": "GET"},
+        {"key": "http.url", "value": "/health"},
+        {"key": "http.status_code", "value": 200}
+      ],
+      "process": {
+        "serviceName": "user-service",
+        "tags": []
+      }
+    }
+  ]
+}

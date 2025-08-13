@@ -1,164 +1,231 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package traffic
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNormalizePath(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name     string
 		input    string
 		expected string
 	}{
+		// Basic cases
 		{
-			name:     "empty path",
-			input:    "",
-			expected: "/",
-		},
-		{
-			name:     "root path",
-			input:    "/",
-			expected: "/",
-		},
-		{
-			name:     "simple path",
+			name:     "Simple path",
 			input:    "/api/users",
 			expected: "/api/users",
 		},
 		{
-			name:     "path with trailing slash",
-			input:    "/api/users/",
-			expected: "/api/users",
-		},
-		{
-			name:     "path with query string",
-			input:    "/api/users?id=123",
-			expected: "/api/users",
-		},
-		{
-			name:     "path with multiple slashes",
-			input:    "/api//users///123",
-			expected: "/api/users/123",
-		},
-		{
-			name:     "URL encoded path",
-			input:    "/api/users/john%20doe",
-			expected: "/api/users/john doe",
-		},
-		{
-			name:     "path without leading slash",
-			input:    "api/users",
-			expected: "/api/users",
-		},
-		{
-			name:     "complex path with query and encoding",
-			input:    "/api//users/john%20doe/?include=profile&sort=name",
-			expected: "/api/users/john doe",
-		},
-		{
-			name:     "root with trailing slash should remain root",
+			name:     "Root path",
 			input:    "/",
 			expected: "/",
 		},
 		{
-			name:     "path with fragment",
-			input:    "/api/users#section",
+			name:     "Empty path",
+			input:    "",
+			expected: "/",
+		},
+		
+		// Trailing slash removal
+		{
+			name:     "Remove trailing slash",
+			input:    "/api/users/",
 			expected: "/api/users",
 		},
+		{
+			name:     "Keep root slash",
+			input:    "/",
+			expected: "/",
+		},
+		{
+			name:     "Multiple trailing slashes",
+			input:    "/api/users///",
+			expected: "/api/users",
+		},
+		
+		// Multiple consecutive slashes
+		{
+			name:     "Collapse multiple slashes",
+			input:    "/api//users///123",
+			expected: "/api/users/123",
+		},
+		{
+			name:     "Leading multiple slashes",
+			input:    "///api/users",
+			expected: "/api/users",
+		},
+		
+		// URL decoding
+		{
+			name:     "URL encoded characters",
+			input:    "/api/users/john%20doe",
+			expected: "/api/users/john doe",
+		},
+		{
+			name:     "URL encoded special characters",
+			input:    "/api/search?q=hello%2Bworld",
+			expected: "/api/search",
+		},
+		{
+			name:     "URL encoded path segments",
+			input:    "/api/users/test%40example.com",
+			expected: "/api/users/test@example.com",
+		},
+		
+		// Query string exclusion
+		{
+			name:     "Path with query string",
+			input:    "/api/users?id=123&name=john",
+			expected: "/api/users",
+		},
+		{
+			name:     "Path with fragment",
+			input:    "/api/users#section1",
+			expected: "/api/users",
+		},
+		{
+			name:     "Path with query and fragment",
+			input:    "/api/users?id=123#section1",
+			expected: "/api/users",
+		},
+		
+		// Edge cases
+		{
+			name:     "Path without leading slash",
+			input:    "api/users",
+			expected: "/api/users",
+		},
+		{
+			name:     "Complex path with all issues",
+			input:    "//api///users//123/?id=456&name=john%20doe#section",
+			expected: "/users/123", // URL parser treats //api as host, path is ///users//123/ -> /users/123
+		},
+		{
+			name:     "Invalid URL encoding (should not crash)",
+			input:    "/api/users/test%ZZ",
+			expected: "/api/users/test%ZZ", // Should use original if decoding fails
+		},
 	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := NormalizePath(tt.input)
-			if result != tt.expected {
-				t.Errorf("NormalizePath(%q) = %q, expected %q", tt.input, result, tt.expected)
-			}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := NormalizePath(tc.input)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
 func TestNormalizeHeaders(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name     string
 		input    map[string]string
 		expected map[string][]string
 	}{
 		{
-			name:     "nil headers",
+			name:     "Nil input",
 			input:    nil,
 			expected: map[string][]string{},
 		},
 		{
-			name:     "empty headers",
+			name:     "Empty input",
 			input:    map[string]string{},
 			expected: map[string][]string{},
 		},
 		{
-			name: "single value headers",
+			name: "Single headers",
 			input: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer token123",
+				"User-Agent":    "Mozilla/5.0",
 			},
 			expected: map[string][]string{
 				"content-type":  {"application/json"},
 				"authorization": {"Bearer token123"},
+				"user-agent":    {"Mozilla/5.0"},
 			},
 		},
 		{
-			name: "multi-value header",
+			name: "Multi-value headers",
 			input: map[string]string{
-				"Accept": "application/json, text/html, */*",
+				"Accept":          "application/json, text/html",
+				"Accept-Encoding": "gzip, deflate, br",
+				"Cache-Control":   "no-cache, no-store, must-revalidate",
 			},
 			expected: map[string][]string{
-				"accept": {"application/json", "text/html", "*/*"},
+				"accept":          {"application/json", "text/html"},
+				"accept-encoding": {"gzip", "deflate", "br"},
+				"cache-control":   {"no-cache", "no-store", "must-revalidate"},
 			},
 		},
 		{
-			name: "mixed case headers",
+			name: "Headers with extra spaces",
 			input: map[string]string{
-				"Content-TYPE": "application/json",
-				"accept":       "text/html",
-				"X-Custom":     "value",
+				"Accept": "application/json,  text/html  , text/plain",
 			},
 			expected: map[string][]string{
-				"content-type": {"application/json"},
-				"accept":       {"text/html"},
-				"x-custom":     {"value"},
+				"accept": {"application/json", "text/html", "text/plain"},
+			},
+		},
+		{
+			name: "Mixed case headers",
+			input: map[string]string{
+				"Content-TYPE":  "application/json",
+				"AUTHORIZATION": "Bearer token123",
+				"user-agent":    "Mozilla/5.0",
+			},
+			expected: map[string][]string{
+				"content-type":  {"application/json"},
+				"authorization": {"Bearer token123"},
+				"user-agent":    {"Mozilla/5.0"},
 			},
 		},
 	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := NormalizeHeaders(tt.input)
-			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("NormalizeHeaders(%v) = %v, expected %v", tt.input, result, tt.expected)
-			}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := NormalizeHeaders(tc.input)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
 func TestNormalizeQuery(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name     string
 		input    string
 		expected map[string][]string
 	}{
 		{
-			name:     "empty query string",
+			name:     "Empty query string",
 			input:    "",
 			expected: map[string][]string{},
 		},
 		{
-			name:  "single parameter",
+			name:  "Single parameter",
 			input: "id=123",
 			expected: map[string][]string{
 				"id": {"123"},
 			},
 		},
 		{
-			name:  "multiple parameters",
+			name:  "Multiple parameters",
 			input: "id=123&name=john&active=true",
 			expected: map[string][]string{
 				"id":     {"123"},
@@ -167,7 +234,7 @@ func TestNormalizeQuery(t *testing.T) {
 			},
 		},
 		{
-			name:  "multi-value parameter",
+			name:  "Multi-value parameters",
 			input: "tags=red&tags=blue&tags=green",
 			expected: map[string][]string{
 				"tags": {"red", "blue", "green"},
@@ -175,84 +242,106 @@ func TestNormalizeQuery(t *testing.T) {
 		},
 		{
 			name:  "URL encoded values",
-			input: "name=john%20doe&message=hello%20world",
+			input: "name=john%20doe&email=test%40example.com",
 			expected: map[string][]string{
-				"name":    {"john doe"},
-				"message": {"hello world"},
+				"name":  {"john doe"},
+				"email": {"test@example.com"},
 			},
 		},
 		{
-			name:  "parameter without value",
-			input: "debug&verbose=true",
+			name:  "Empty values",
+			input: "empty=&blank&novalue=",
 			expected: map[string][]string{
-				"debug":   {""},
-				"verbose": {"true"},
+				"empty":   {""},
+				"blank":   {""},
+				"novalue": {""},
 			},
 		},
 		{
-			name:  "case sensitive keys",
-			input: "ID=123&id=456",
+			name:  "Special characters in keys",
+			input: "filter[name]=john&sort[created_at]=desc",
 			expected: map[string][]string{
-				"ID": {"123"},
-				"id": {"456"},
+				"filter[name]":       {"john"},
+				"sort[created_at]":   {"desc"},
 			},
+		},
+		{
+			name:  "Complex query string",
+			input: "q=search%20term&limit=10&offset=20&include=profile&include=settings",
+			expected: map[string][]string{
+				"q":       {"search term"},
+				"limit":   {"10"},
+				"offset":  {"20"},
+				"include": {"profile", "settings"},
+			},
+		},
+		{
+			name:     "Invalid query string",
+			input:    "invalid%ZZ",
+			expected: map[string][]string{}, // Should return empty map if parsing fails
 		},
 	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := NormalizeQuery(tt.input)
-			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("NormalizeQuery(%q) = %v, expected %v", tt.input, result, tt.expected)
-			}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := NormalizeQuery(tc.input)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
 func TestExtractQueryString(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name     string
 		input    string
 		expected string
 	}{
 		{
-			name:     "no query string",
+			name:     "Path without query",
 			input:    "/api/users",
 			expected: "",
 		},
 		{
-			name:     "simple query string",
-			input:    "/api/users?id=123",
-			expected: "id=123",
+			name:     "Path with query",
+			input:    "/api/users?id=123&name=john",
+			expected: "id=123&name=john",
 		},
 		{
-			name:     "complex query string",
-			input:    "/api/users?id=123&name=john&active=true",
-			expected: "id=123&name=john&active=true",
-		},
-		{
-			name:     "query string with fragment",
-			input:    "/api/users?id=123#section",
-			expected: "id=123",
-		},
-		{
-			name:     "empty query string",
+			name:     "Path with empty query",
 			input:    "/api/users?",
 			expected: "",
 		},
 		{
-			name:     "malformed URL",
+			name:     "Path with fragment",
+			input:    "/api/users#section1",
+			expected: "",
+		},
+		{
+			name:     "Path with query and fragment",
+			input:    "/api/users?id=123#section1",
+			expected: "id=123",
+		},
+		{
+			name:     "Complex URL",
+			input:    "/api/search?q=hello%20world&limit=10&offset=20",
+			expected: "q=hello%20world&limit=10&offset=20",
+		},
+		{
+			name:     "Invalid URL",
 			input:    "not a valid url",
 			expected: "",
 		},
+		{
+			name:     "Empty input",
+			input:    "",
+			expected: "",
+		},
 	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ExtractQueryString(tt.input)
-			if result != tt.expected {
-				t.Errorf("ExtractQueryString(%q) = %q, expected %q", tt.input, result, tt.expected)
-			}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ExtractQueryString(tc.input)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
@@ -260,32 +349,32 @@ func TestExtractQueryString(t *testing.T) {
 func TestApplyRedactionPolicy(t *testing.T) {
 	headers := map[string][]string{
 		"authorization": {"Bearer token123"},
-		"content-type":  {"application/json"},
 		"cookie":        {"session=abc123"},
-		"accept":        {"application/json"},
+		"content-type":  {"application/json"},
+		"user-agent":    {"Mozilla/5.0"},
 	}
-	
+
 	query := map[string][]string{
 		"token":    {"secret123"},
+		"password": {"mypassword"},
 		"id":       {"123"},
-		"password": {"secret"},
 		"name":     {"john"},
 	}
-	
+
 	sensitiveKeys := []string{"authorization", "cookie", "token", "password"}
-	
-	tests := []struct {
+
+	testCases := []struct {
 		name            string
 		policy          string
 		expectedHeaders map[string][]string
 		expectedQuery   map[string][]string
 	}{
 		{
-			name:   "drop policy",
+			name:   "Drop policy",
 			policy: "drop",
 			expectedHeaders: map[string][]string{
 				"content-type": {"application/json"},
-				"accept":       {"application/json"},
+				"user-agent":   {"Mozilla/5.0"},
 			},
 			expectedQuery: map[string][]string{
 				"id":   {"123"},
@@ -293,43 +382,43 @@ func TestApplyRedactionPolicy(t *testing.T) {
 			},
 		},
 		{
-			name:   "mask policy",
+			name:   "Mask policy",
 			policy: "mask",
 			expectedHeaders: map[string][]string{
 				"authorization": {"***"},
-				"content-type":  {"application/json"},
 				"cookie":        {"***"},
-				"accept":        {"application/json"},
+				"content-type":  {"application/json"},
+				"user-agent":    {"Mozilla/5.0"},
 			},
 			expectedQuery: map[string][]string{
 				"token":    {"***"},
-				"id":       {"123"},
 				"password": {"***"},
+				"id":       {"123"},
 				"name":     {"john"},
 			},
 		},
 		{
-			name:   "hash policy",
+			name:   "Hash policy",
 			policy: "hash",
 			expectedHeaders: map[string][]string{
 				"authorization": {"<hashed>"},
-				"content-type":  {"application/json"},
 				"cookie":        {"<hashed>"},
-				"accept":        {"application/json"},
+				"content-type":  {"application/json"},
+				"user-agent":    {"Mozilla/5.0"},
 			},
 			expectedQuery: map[string][]string{
 				"token":    {"<hashed>"},
-				"id":       {"123"},
 				"password": {"<hashed>"},
+				"id":       {"123"},
 				"name":     {"john"},
 			},
 		},
 		{
-			name:   "unknown policy defaults to drop",
+			name:   "Unknown policy (defaults to drop)",
 			policy: "unknown",
 			expectedHeaders: map[string][]string{
 				"content-type": {"application/json"},
-				"accept":       {"application/json"},
+				"user-agent":   {"Mozilla/5.0"},
 			},
 			expectedQuery: map[string][]string{
 				"id":   {"123"},
@@ -337,18 +426,12 @@ func TestApplyRedactionPolicy(t *testing.T) {
 			},
 		},
 	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resultHeaders, resultQuery := ApplyRedactionPolicy(headers, query, sensitiveKeys, tt.policy)
-			
-			if !reflect.DeepEqual(resultHeaders, tt.expectedHeaders) {
-				t.Errorf("ApplyRedactionPolicy headers = %v, expected %v", resultHeaders, tt.expectedHeaders)
-			}
-			
-			if !reflect.DeepEqual(resultQuery, tt.expectedQuery) {
-				t.Errorf("ApplyRedactionPolicy query = %v, expected %v", resultQuery, tt.expectedQuery)
-			}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resultHeaders, resultQuery := ApplyRedactionPolicy(headers, query, sensitiveKeys, tc.policy)
+			assert.Equal(t, tc.expectedHeaders, resultHeaders)
+			assert.Equal(t, tc.expectedQuery, resultQuery)
 		})
 	}
 }
@@ -358,20 +441,81 @@ func TestApplyRedactionPolicy_EmptySensitiveKeys(t *testing.T) {
 		"authorization": {"Bearer token123"},
 		"content-type":  {"application/json"},
 	}
-	
+
 	query := map[string][]string{
 		"token": {"secret123"},
 		"id":    {"123"},
 	}
-	
+
+	// No sensitive keys - should return original data
 	resultHeaders, resultQuery := ApplyRedactionPolicy(headers, query, []string{}, "drop")
-	
-	// Should return original data when no sensitive keys are specified
-	if !reflect.DeepEqual(resultHeaders, headers) {
-		t.Errorf("Expected headers to remain unchanged, got %v", resultHeaders)
+
+	assert.Equal(t, headers, resultHeaders)
+	assert.Equal(t, query, resultQuery)
+}
+
+func TestApplyRedactionPolicy_CaseInsensitive(t *testing.T) {
+	headers := map[string][]string{
+		"Authorization": {"Bearer token123"},
+		"COOKIE":        {"session=abc123"},
+		"content-type":  {"application/json"},
 	}
-	
-	if !reflect.DeepEqual(resultQuery, query) {
-		t.Errorf("Expected query to remain unchanged, got %v", resultQuery)
+
+	query := map[string][]string{
+		"TOKEN":    {"secret123"},
+		"Password": {"mypassword"},
+		"id":       {"123"},
+	}
+
+	sensitiveKeys := []string{"authorization", "cookie", "token", "password"}
+
+	resultHeaders, resultQuery := ApplyRedactionPolicy(headers, query, sensitiveKeys, "drop")
+
+	// Should drop sensitive keys regardless of case
+	expectedHeaders := map[string][]string{
+		"content-type": {"application/json"},
+	}
+	expectedQuery := map[string][]string{
+		"id": {"123"},
+	}
+
+	assert.Equal(t, expectedHeaders, resultHeaders)
+	assert.Equal(t, expectedQuery, resultQuery)
+}
+
+func TestNormalizePath_Integration(t *testing.T) {
+	// Test complex real-world scenarios
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Real nginx log path",
+			input:    "/api/v1/users/123/profile?include=settings&format=json",
+			expected: "/api/v1/users/123/profile",
+		},
+		{
+			name:     "Path with encoded spaces and special chars",
+			input:    "/api/search?q=hello%20world%21&category=tech%26science",
+			expected: "/api/search",
+		},
+		{
+			name:     "Messy path from real logs",
+			input:    "///api//v1///users//123//?id=456&name=john%20doe///",
+			expected: "/api/v1/users/123",
+		},
+		{
+			name:     "Path with encoded slashes",
+			input:    "/api/files/folder%2Fsubfolder%2Ffile.txt",
+			expected: "/api/files/folder/subfolder/file.txt",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := NormalizePath(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
 	}
 }

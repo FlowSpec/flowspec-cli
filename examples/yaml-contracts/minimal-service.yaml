@@ -1,0 +1,25 @@
+apiVersion: flowspec/v1alpha1
+kind: ServiceSpec
+metadata:
+  name: minimal-service
+  version: v1.0.0
+spec:
+  endpoints:
+    - path: /health
+      operations:
+        - method: GET
+          responses:
+            statusCodes: [200]
+            aggregation: "exact"
+    - path: /api/ping
+      operations:
+        - method: GET
+          responses:
+            statusCodes: [200]
+            aggregation: "exact"
+        - method: POST
+          responses:
+            statusCodes: [200]
+            aggregation: "exact"
+          required:
+            headers: ["content-type"]

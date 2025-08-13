@@ -155,6 +155,7 @@ func NewSpecParser() *DefaultSpecParser {
 	parser.RegisterFileParser(LanguageJava, NewJavaFileParser())
 	parser.RegisterFileParser(LanguageTypeScript, NewTypeScriptFileParser())
 	parser.RegisterFileParser(LanguageGo, NewGoFileParser())
+	parser.RegisterFileParser(LanguageYAML, NewYAMLFileParser())
 
 	return parser
 }
@@ -175,6 +176,7 @@ func NewSpecParserWithConfig(config *ParserConfig) *DefaultSpecParser {
 	parser.RegisterFileParser(LanguageJava, NewJavaFileParser())
 	parser.RegisterFileParser(LanguageTypeScript, NewTypeScriptFileParser())
 	parser.RegisterFileParser(LanguageGo, NewGoFileParser())
+	parser.RegisterFileParser(LanguageYAML, NewYAMLFileParser())
 
 	return parser
 }
@@ -209,14 +211,21 @@ func (p *DefaultSpecParser) ParseFromSource(sourcePath string) (*models.ParseRes
 		return nil, fmt.Errorf("failed to access source path %s: %w", sourcePath, err)
 	}
 
-	if !info.IsDir() {
-		return nil, fmt.Errorf("source path %s is not a directory", sourcePath)
-	}
+	var files []string
 
-	// Scan for supported files
-	files, err := p.scanFiles(sourcePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to scan files: %w", err)
+	if info.IsDir() {
+		// Directory: Check for YAML files first, then fallback to source code scanning
+		files, err = p.scanFilesWithYAMLPriority(sourcePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan files: %w", err)
+		}
+	} else {
+		// Single file: Check if it's supported
+		if p.isSupportedFile(sourcePath) {
+			files = []string{sourcePath}
+		} else {
+			return nil, fmt.Errorf("unsupported file type: %s", sourcePath)
+		}
 	}
 
 	metrics.TotalFiles = len(files)
@@ -254,8 +263,7 @@ func (p *DefaultSpecParser) scanFiles(rootPath string) ([]string, error) {
 
 	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			// Log error but continue walking
-			return nil
+			return err
 		}
 
 		// Skip directories
@@ -276,6 +284,97 @@ func (p *DefaultSpecParser) scanFiles(rootPath string) ([]string, error) {
 	})
 
 	return files, err
+}
+
+// scanFilesWithYAMLPriority scans directory with YAML priority logic
+// Priority: service-spec.yaml > other YAML files > source code files
+func (p *DefaultSpecParser) scanFilesWithYAMLPriority(rootPath string) ([]string, error) {
+	// First, look for YAML files in the root directory
+	yamlFiles, err := p.findYAMLFiles(rootPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// If we found YAML files, use them with priority logic
+	if len(yamlFiles) > 0 {
+		prioritizedFiles := p.prioritizeYAMLFiles(yamlFiles)
+		
+		// Check for conflicts: if we have multiple YAML files but no service-spec.yaml
+		if len(prioritizedFiles) > 1 && !p.hasServiceSpecYAML(yamlFiles) {
+			return nil, fmt.Errorf("multiple YAML files found but no service-spec.yaml. Found files: %s. Please use --path to specify the exact file you want to use", 
+				strings.Join(p.getFileNames(yamlFiles), ", "))
+		}
+		
+		return prioritizedFiles, nil
+	}
+
+	// No YAML files found, fallback to source code scanning
+	return p.scanFiles(rootPath)
+}
+
+// hasServiceSpecYAML checks if service-spec.yaml exists in the file list
+func (p *DefaultSpecParser) hasServiceSpecYAML(yamlFiles []string) bool {
+	preferredName := "service-spec.yaml"
+	for _, file := range yamlFiles {
+		if strings.ToLower(filepath.Base(file)) == preferredName {
+			return true
+		}
+	}
+	return false
+}
+
+// getFileNames extracts just the filenames from full paths for error messages
+func (p *DefaultSpecParser) getFileNames(files []string) []string {
+	names := make([]string, len(files))
+	for i, file := range files {
+		names[i] = filepath.Base(file)
+	}
+	return names
+}
+
+// findYAMLFiles finds all YAML files in the given directory (non-recursive for priority logic)
+func (p *DefaultSpecParser) findYAMLFiles(rootPath string) ([]string, error) {
+	var yamlFiles []string
+
+	entries, err := os.ReadDir(rootPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		filePath := filepath.Join(rootPath, entry.Name())
+		if p.isYAMLFile(filePath) {
+			yamlFiles = append(yamlFiles, filePath)
+		}
+	}
+
+	return yamlFiles, nil
+}
+
+// prioritizeYAMLFiles implements YAML file priority logic
+func (p *DefaultSpecParser) prioritizeYAMLFiles(yamlFiles []string) []string {
+	// Look for service-spec.yaml first
+	preferredName := "service-spec.yaml"
+	
+	for _, file := range yamlFiles {
+		if strings.ToLower(filepath.Base(file)) == preferredName {
+			return []string{file} // Return only the preferred file
+		}
+	}
+
+	// If multiple YAML files exist but no service-spec.yaml, return all files
+	// The caller will handle conflict detection and error reporting
+	return yamlFiles
+}
+
+// isYAMLFile checks if a file is a YAML file
+func (p *DefaultSpecParser) isYAMLFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	return ext == ".yaml" || ext == ".yml"
 }
 
 // shouldSkipDirectory determines if a directory should be skipped during scanning

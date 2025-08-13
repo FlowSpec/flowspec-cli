@@ -52,7 +52,7 @@ func TestNewSpecParser(t *testing.T) {
 	assert.Equal(t, 4, parser.maxWorkers)
 	assert.NotNil(t, parser.fileParsers)
 	assert.NotNil(t, parser.supportedTypes)
-	assert.Equal(t, 3, parser.GetFileCount()) // Java, TypeScript, and Go parsers registered by default
+	assert.Equal(t, 4, parser.GetFileCount()) // Java, TypeScript, Go, and YAML parsers registered by default
 }
 
 func TestNewSpecParserWithConfig(t *testing.T) {
@@ -90,7 +90,7 @@ func TestRegisterFileParser(t *testing.T) {
 	retrievedParser, exists := parser.GetFileParser(LanguageJava)
 	assert.True(t, exists)
 	assert.Equal(t, mockParser, retrievedParser)
-	assert.Equal(t, 3, parser.GetFileCount()) // Java, TypeScript, and Go are already registered
+	assert.Equal(t, 4, parser.GetFileCount()) // Java, TypeScript, and Go are already registered
 }
 
 func TestGetFileParser_NotExists(t *testing.T) {
@@ -108,7 +108,7 @@ func TestGetSupportedLanguages(t *testing.T) {
 	assert.Contains(t, languages, LanguageJava)
 	assert.Contains(t, languages, LanguageTypeScript)
 	assert.Contains(t, languages, LanguageGo)
-	assert.Len(t, languages, 3)
+	assert.Len(t, languages, 4)
 }
 
 func TestGetSupportedExtensions(t *testing.T) {
@@ -119,7 +119,7 @@ func TestGetSupportedExtensions(t *testing.T) {
 	assert.Contains(t, extensions, ".ts")
 	assert.Contains(t, extensions, ".tsx")
 	assert.Contains(t, extensions, ".go")
-	assert.Len(t, extensions, 4)
+	assert.Len(t, extensions, 6)
 }
 
 func TestIsLanguageSupported(t *testing.T) {
@@ -271,15 +271,14 @@ func TestParseFromSource_InvalidPath(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "failed to access source path")
 
-	// Test file instead of directory
+	// Test valid single file (should succeed)
 	tmpFile := filepath.Join(t.TempDir(), "test.java")
-	err = os.WriteFile(tmpFile, []byte("content"), 0644)
+	err = os.WriteFile(tmpFile, []byte("// No ServiceSpec annotations"), 0644)
 	require.NoError(t, err)
 
 	result, err = parser.ParseFromSource(tmpFile)
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "is not a directory")
+	assert.NoError(t, err) // Single file parsing should succeed
+	assert.NotNil(t, result)
 }
 
 func TestParseFromSource_EmptyDirectory(t *testing.T) {

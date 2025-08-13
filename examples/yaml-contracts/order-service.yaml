@@ -1,0 +1,161 @@
+apiVersion: flowspec/v1alpha1
+kind: ServiceSpec
+metadata:
+  name: order-service
+  version: v1.5.0
+spec:
+  endpoints:
+    - path: /api/orders/{id}
+      operations:
+        - method: GET
+          responses:
+            statusRanges: ["2xx", "4xx"]
+            aggregation: "range"
+          required:
+            headers: ["authorization"]
+            query: []
+          optional:
+            headers: ["accept-language"]
+            query: ["include"]
+          stats:
+            supportCount: 1250
+            firstSeen: "2025-07-15T09:00:00Z"
+            lastSeen: "2025-08-10T16:45:00Z"
+        - method: PUT
+          responses:
+            statusCodes: [200, 400, 404, 409]
+            aggregation: "exact"
+          required:
+            headers: ["authorization", "content-type"]
+            query: []
+          stats:
+            supportCount: 234
+            firstSeen: "2025-07-20T10:30:00Z"
+            lastSeen: "2025-08-10T15:20:00Z"
+        - method: DELETE
+          responses:
+            statusCodes: [204, 404, 409]
+            aggregation: "exact"
+          required:
+            headers: ["authorization"]
+            query: []
+          stats:
+            supportCount: 89
+            firstSeen: "2025-07-25T11:00:00Z"
+            lastSeen: "2025-08-09T14:30:00Z"
+    - path: /api/orders/{id}/status
+      operations:
+        - method: PUT
+          responses:
+            statusCodes: [200, 400, 404, 409]
+            aggregation: "exact"
+          required:
+            headers: ["authorization", "content-type"]
+            query: []
+          stats:
+            supportCount: 456
+            firstSeen: "2025-07-18T08:45:00Z"
+            lastSeen: "2025-08-10T17:15:00Z"
+        - method: GET
+          responses:
+            statusRanges: ["2xx", "4xx"]
+            aggregation: "range"
+          required:
+            headers: ["authorization"]
+            query: []
+          stats:
+            supportCount: 678
+            firstSeen: "2025-07-16T09:15:00Z"
+            lastSeen: "2025-08-10T16:00:00Z"
+    - path: /api/orders
+      operations:
+        - method: GET
+          responses:
+            statusCodes: [200]
+            aggregation: "exact"
+          required:
+            headers: ["authorization"]
+            query: []
+          optional:
+            headers: ["accept-language"]
+            query: ["status", "customer_id", "date_from", "date_to", "page", "limit"]
+          stats:
+            supportCount: 890
+            firstSeen: "2025-07-15T08:00:00Z"
+            lastSeen: "2025-08-10T18:30:00Z"
+        - method: POST
+          responses:
+            statusCodes: [201, 400, 422]
+            aggregation: "exact"
+          required:
+            headers: ["authorization", "content-type"]
+            query: []
+          stats:
+            supportCount: 345
+            firstSeen: "2025-07-15T10:00:00Z"
+            lastSeen: "2025-08-10T17:45:00Z"
+    - path: /api/orders/{id}/items
+      operations:
+        - method: GET
+          responses:
+            statusRanges: ["2xx", "4xx"]
+            aggregation: "range"
+          required:
+            headers: ["authorization"]
+            query: []
+          optional:
+            query: ["include_details"]
+          stats:
+            supportCount: 567
+            firstSeen: "2025-07-20T09:30:00Z"
+            lastSeen: "2025-08-10T16:15:00Z"
+        - method: POST
+          responses:
+            statusCodes: [201, 400, 404, 409]
+            aggregation: "exact"
+          required:
+            headers: ["authorization", "content-type"]
+            query: []
+          stats:
+            supportCount: 123
+            firstSeen: "2025-07-22T11:45:00Z"
+            lastSeen: "2025-08-10T14:00:00Z"
+    - path: /api/orders/{id}/items/{item_id}
+      operations:
+        - method: PUT
+          responses:
+            statusCodes: [200, 400, 404]
+            aggregation: "exact"
+          required:
+            headers: ["authorization", "content-type"]
+            query: []
+          stats:
+            supportCount: 78
+            firstSeen: "2025-07-25T13:20:00Z"
+            lastSeen: "2025-08-09T15:45:00Z"
+        - method: DELETE
+          responses:
+            statusCodes: [204, 404, 409]
+            aggregation: "exact"
+          required:
+            headers: ["authorization"]
+            query: []
+          stats:
+            supportCount: 45
+            firstSeen: "2025-07-28T10:10:00Z"
+            lastSeen: "2025-08-08T16:30:00Z"
+    - path: /api/orders/search
+      operations:
+        - method: GET
+          responses:
+            statusCodes: [200, 400]
+            aggregation: "exact"
+          required:
+            headers: ["authorization"]
+            query: ["q"]
+          optional:
+            query: ["category", "status", "date_range", "sort", "page", "limit"]
+          stats:
+            supportCount: 234
+            firstSeen: "2025-07-30T12:00:00Z"
+            lastSeen: "2025-08-10T17:00:00Z"

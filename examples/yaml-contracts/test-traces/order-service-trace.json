@@ -1,0 +1,92 @@
+{
+  "traceID": "order-service-trace-001",
+  "spans": [
+    {
+      "traceID": "order-service-trace-001",
+      "spanID": "span001",
+      "operationName": "GET /api/orders/ord-12345",
+      "startTime": 1722508240000000,
+      "duration": 75000,
+      "tags": [
+        {"key": "http.method", "value": "GET"},
+        {"key": "http.url", "value": "/api/orders/ord-12345"},
+        {"key": "http.status_code", "value": 200},
+        {"key": "http.request.header.authorization", "value": "Bearer order-token"}
+      ],
+      "process": {
+        "serviceName": "order-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "order-service-trace-001",
+      "spanID": "span002",
+      "operationName": "POST /api/orders",
+      "startTime": 1722508245000000,
+      "duration": 200000,
+      "tags": [
+        {"key": "http.method", "value": "POST"},
+        {"key": "http.url", "value": "/api/orders"},
+        {"key": "http.status_code", "value": 201},
+        {"key": "http.request.header.authorization", "value": "Bearer order-token"},
+        {"key": "http.request.header.content-type", "value": "application/json"}
+      ],
+      "process": {
+        "serviceName": "order-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "order-service-trace-001",
+      "spanID": "span003",
+      "operationName": "PUT /api/orders/ord-67890/status",
+      "startTime": 1722508250000000,
+      "duration": 90000,
+      "tags": [
+        {"key": "http.method", "value": "PUT"},
+        {"key": "http.url", "value": "/api/orders/ord-67890/status"},
+        {"key": "http.status_code", "value": 200},
+        {"key": "http.request.header.authorization", "value": "Bearer order-token"},
+        {"key": "http.request.header.content-type", "value": "application/json"}
+      ],
+      "process": {
+        "serviceName": "order-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "order-service-trace-001",
+      "spanID": "span004",
+      "operationName": "GET /api/orders",
+      "startTime": 1722508255000000,
+      "duration": 50000,
+      "tags": [
+        {"key": "http.method", "value": "GET"},
+        {"key": "http.url", "value": "/api/orders?status=pending&customer_id=123"},
+        {"key": "http.status_code", "value": 200},
+        {"key": "http.request.header.authorization", "value": "Bearer order-token"}
+      ],
+      "process": {
+        "serviceName": "order-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "order-service-trace-001",
+      "spanID": "span005",
+      "operationName": "GET /api/orders/search",
+      "startTime": 1722508260000000,
+      "duration": 85000,
+      "tags": [
+        {"key": "http.method", "value": "GET"},
+        {"key": "http.url", "value": "/api/orders/search?q=electronics&status=shipped"},
+        {"key": "http.status_code", "value": 200},
+        {"key": "http.request.header.authorization", "value": "Bearer order-token"}
+      ],
+      "process": {
+        "serviceName": "order-service",
+        "tags": []
+      }
+    }
+  ]
+}

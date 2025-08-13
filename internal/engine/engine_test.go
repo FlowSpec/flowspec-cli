@@ -202,7 +202,7 @@ func TestNewSpecMatcher(t *testing.T) {
 	matcher := NewSpecMatcher()
 
 	assert.NotNil(t, matcher)
-	assert.Len(t, matcher.matchStrategies, 3) // OperationID, SpanName, Attribute matchers
+	assert.Len(t, matcher.matchStrategies, 4) // Endpoint, OperationID, SpanName, Attribute matchers
 }
 
 func TestSpecMatcher_AddStrategy(t *testing.T) {

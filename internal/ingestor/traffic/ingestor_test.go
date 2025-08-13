@@ -1,189 +1,162 @@
+// Copyright 2024-2025 FlowSpec
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package traffic
 
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDefaultIngestOptions(t *testing.T) {
-	opts := DefaultIngestOptions()
+	options := DefaultIngestOptions()
+
+	assert.NotNil(t, options)
+	assert.Equal(t, "combined", options.LogFormat)
+	assert.Equal(t, 1.0, options.SampleRate)
+	assert.Equal(t, "drop", options.RedactionPolicy)
+	assert.Equal(t, 10, options.MaxErrorSamples)
 	
-	if opts.LogFormat != "combined" {
-		t.Errorf("Expected LogFormat to be 'combined', got %s", opts.LogFormat)
-	}
-	
-	if opts.SampleRate != 1.0 {
-		t.Errorf("Expected SampleRate to be 1.0, got %f", opts.SampleRate)
-	}
-	
-	if opts.RedactionPolicy != "drop" {
-		t.Errorf("Expected RedactionPolicy to be 'drop', got %s", opts.RedactionPolicy)
-	}
-	
-	if opts.MaxErrorSamples != 10 {
-		t.Errorf("Expected MaxErrorSamples to be 10, got %d", opts.MaxErrorSamples)
-	}
-	
+	// Check default sensitive keys
 	expectedSensitiveKeys := []string{"authorization", "cookie", "set-cookie", "token", "password", "api_key"}
-	if len(opts.SensitiveKeys) != len(expectedSensitiveKeys) {
-		t.Errorf("Expected %d sensitive keys, got %d", len(expectedSensitiveKeys), len(opts.SensitiveKeys))
-	}
+	assert.Equal(t, expectedSensitiveKeys, options.SensitiveKeys)
 }
 
 func TestNewIngestMetrics(t *testing.T) {
 	metrics := NewIngestMetrics()
-	
-	if metrics.TotalLines != 0 {
-		t.Errorf("Expected TotalLines to be 0, got %d", metrics.TotalLines)
-	}
-	
-	if metrics.ParsedLines != 0 {
-		t.Errorf("Expected ParsedLines to be 0, got %d", metrics.ParsedLines)
-	}
-	
-	if metrics.ErrorLines != 0 {
-		t.Errorf("Expected ErrorLines to be 0, got %d", metrics.ErrorLines)
-	}
-	
-	if len(metrics.ErrorSamples) != 0 {
-		t.Errorf("Expected ErrorSamples to be empty, got %d items", len(metrics.ErrorSamples))
-	}
+
+	assert.NotNil(t, metrics)
+	assert.Equal(t, int64(0), metrics.TotalLines)
+	assert.Equal(t, int64(0), metrics.ParsedLines)
+	assert.Equal(t, int64(0), metrics.ErrorLines)
+	assert.Equal(t, time.Duration(0), metrics.Duration)
+	assert.NotNil(t, metrics.ErrorSamples)
+	assert.Len(t, metrics.ErrorSamples, 0)
 }
 
 func TestIngestMetrics_AddError(t *testing.T) {
 	metrics := NewIngestMetrics()
 	maxSamples := 3
-	
+
 	// Add errors up to the limit
-	for i := 0; i < 5; i++ {
-		errorLine := "error line " + string(rune('1'+i))
-		metrics.AddError(errorLine, maxSamples)
-	}
-	
-	if metrics.ErrorLines != 5 {
-		t.Errorf("Expected ErrorLines to be 5, got %d", metrics.ErrorLines)
-	}
-	
-	if len(metrics.ErrorSamples) != maxSamples {
-		t.Errorf("Expected ErrorSamples to have %d items, got %d", maxSamples, len(metrics.ErrorSamples))
-	}
-	
-	// Verify the first 3 error samples are collected
-	expectedSamples := []string{"error line 1", "error line 2", "error line 3"}
-	for i, expected := range expectedSamples {
-		if metrics.ErrorSamples[i] != expected {
-			t.Errorf("Expected ErrorSamples[%d] to be '%s', got '%s'", i, expected, metrics.ErrorSamples[i])
-		}
-	}
+	metrics.AddError("error line 1", maxSamples)
+	metrics.AddError("error line 2", maxSamples)
+	metrics.AddError("error line 3", maxSamples)
+
+	assert.Equal(t, int64(3), metrics.ErrorLines)
+	assert.Len(t, metrics.ErrorSamples, 3)
+	assert.Contains(t, metrics.ErrorSamples, "error line 1")
+	assert.Contains(t, metrics.ErrorSamples, "error line 2")
+	assert.Contains(t, metrics.ErrorSamples, "error line 3")
+
+	// Add more errors beyond the limit
+	metrics.AddError("error line 4", maxSamples)
+	metrics.AddError("error line 5", maxSamples)
+
+	// Error count should increase but samples should remain at limit
+	assert.Equal(t, int64(5), metrics.ErrorLines)
+	assert.Len(t, metrics.ErrorSamples, 3) // Still at limit
+	assert.NotContains(t, metrics.ErrorSamples, "error line 4")
+	assert.NotContains(t, metrics.ErrorSamples, "error line 5")
 }
 
 func TestIngestMetrics_AddParsed(t *testing.T) {
 	metrics := NewIngestMetrics()
-	
+
 	metrics.AddParsed()
 	metrics.AddParsed()
-	
-	if metrics.ParsedLines != 2 {
-		t.Errorf("Expected ParsedLines to be 2, got %d", metrics.ParsedLines)
-	}
+	metrics.AddParsed()
+
+	assert.Equal(t, int64(3), metrics.ParsedLines)
 }
 
 func TestIngestMetrics_AddTotal(t *testing.T) {
 	metrics := NewIngestMetrics()
-	
+
 	metrics.AddTotal()
 	metrics.AddTotal()
 	metrics.AddTotal()
-	
-	if metrics.TotalLines != 3 {
-		t.Errorf("Expected TotalLines to be 3, got %d", metrics.TotalLines)
-	}
+	metrics.AddTotal()
+
+	assert.Equal(t, int64(4), metrics.TotalLines)
 }
 
 func TestIngestMetrics_SetDuration(t *testing.T) {
 	metrics := NewIngestMetrics()
 	duration := 5 * time.Second
-	
+
 	metrics.SetDuration(duration)
-	
-	if metrics.Duration != duration {
-		t.Errorf("Expected Duration to be %v, got %v", duration, metrics.Duration)
-	}
+
+	assert.Equal(t, duration, metrics.Duration)
 }
 
 func TestIngestMetrics_ErrorRate(t *testing.T) {
 	metrics := NewIngestMetrics()
-	
-	// Test with no data
-	if metrics.ErrorRate() != 0.0 {
-		t.Errorf("Expected ErrorRate to be 0.0 with no data, got %f", metrics.ErrorRate())
-	}
-	
-	// Add some data
-	metrics.AddTotal()
-	metrics.AddTotal()
-	metrics.AddTotal()
-	metrics.AddTotal()
-	metrics.AddError("error1", 10)
-	metrics.AddError("error2", 10)
-	
-	expectedRate := 2.0 / 4.0 // 2 errors out of 4 total
-	if metrics.ErrorRate() != expectedRate {
-		t.Errorf("Expected ErrorRate to be %f, got %f", expectedRate, metrics.ErrorRate())
-	}
+
+	// Test with no lines
+	assert.Equal(t, 0.0, metrics.ErrorRate())
+
+	// Test with some errors
+	metrics.TotalLines = 100
+	metrics.ErrorLines = 15
+
+	expectedRate := 15.0 / 100.0
+	assert.Equal(t, expectedRate, metrics.ErrorRate())
+
+	// Test with no errors
+	metrics.ErrorLines = 0
+	assert.Equal(t, 0.0, metrics.ErrorRate())
 }
 
 func TestIngestMetrics_IsIncomplete(t *testing.T) {
 	metrics := NewIngestMetrics()
-	
-	// Test with low error rate (5%)
-	for i := 0; i < 20; i++ {
-		metrics.AddTotal()
-	}
-	metrics.AddError("error1", 10)
-	
-	if metrics.IsIncomplete() {
-		t.Error("Expected IsIncomplete to be false with 5% error rate")
-	}
-	
-	// Test with high error rate (15%)
-	metrics.AddError("error2", 10)
-	metrics.AddError("error3", 10)
-	
-	if !metrics.IsIncomplete() {
-		t.Error("Expected IsIncomplete to be true with 15% error rate")
-	}
+
+	// Test with no lines (should not be incomplete)
+	assert.False(t, metrics.IsIncomplete())
+
+	// Test with error rate below threshold (10%)
+	metrics.TotalLines = 100
+	metrics.ErrorLines = 5 // 5% error rate
+	assert.False(t, metrics.IsIncomplete())
+
+	// Test with error rate at threshold (10%)
+	metrics.ErrorLines = 10 // 10% error rate
+	assert.False(t, metrics.IsIncomplete())
+
+	// Test with error rate above threshold (>10%)
+	metrics.ErrorLines = 15 // 15% error rate
+	assert.True(t, metrics.IsIncomplete())
+
+	// Test with very high error rate
+	metrics.ErrorLines = 50 // 50% error rate
+	assert.True(t, metrics.IsIncomplete())
 }
 
-func TestTimeRange(t *testing.T) {
-	now := time.Now()
-	since := now.Add(-1 * time.Hour)
-	until := now.Add(1 * time.Hour)
+func TestNormalizedRecord_Structure(t *testing.T) {
+	timestamp := time.Now()
 	
-	timeRange := &TimeRange{
-		Since: &since,
-		Until: &until,
-	}
-	
-	if timeRange.Since == nil || !timeRange.Since.Equal(since) {
-		t.Errorf("Expected Since to be %v, got %v", since, timeRange.Since)
-	}
-	
-	if timeRange.Until == nil || !timeRange.Until.Equal(until) {
-		t.Errorf("Expected Until to be %v, got %v", until, timeRange.Until)
-	}
-}
-
-func TestNormalizedRecord(t *testing.T) {
-	now := time.Now()
 	record := &NormalizedRecord{
 		Method:    "GET",
 		Path:      "/api/users/123",
 		RawPath:   "/api/users/123?include=profile",
 		Status:    200,
-		Timestamp: now,
+		Timestamp: timestamp,
 		Query: map[string][]string{
 			"include": {"profile"},
+			"format":  {"json"},
 		},
 		Headers: map[string][]string{
 			"authorization": {"Bearer token123"},
@@ -193,28 +166,72 @@ func TestNormalizedRecord(t *testing.T) {
 		Scheme:    "https",
 		BodyBytes: 1024,
 	}
-	
-	if record.Method != "GET" {
-		t.Errorf("Expected Method to be 'GET', got %s", record.Method)
+
+	// Verify all fields are set correctly
+	assert.Equal(t, "GET", record.Method)
+	assert.Equal(t, "/api/users/123", record.Path)
+	assert.Equal(t, "/api/users/123?include=profile", record.RawPath)
+	assert.Equal(t, 200, record.Status)
+	assert.Equal(t, timestamp, record.Timestamp)
+	assert.Equal(t, "api.example.com", record.Host)
+	assert.Equal(t, "https", record.Scheme)
+	assert.Equal(t, int64(1024), record.BodyBytes)
+
+	// Verify query parameters
+	assert.Len(t, record.Query, 2)
+	assert.Equal(t, []string{"profile"}, record.Query["include"])
+	assert.Equal(t, []string{"json"}, record.Query["format"])
+
+	// Verify headers
+	assert.Len(t, record.Headers, 2)
+	assert.Equal(t, []string{"Bearer token123"}, record.Headers["authorization"])
+	assert.Equal(t, []string{"application/json"}, record.Headers["accept"])
+}
+
+func TestTimeRange_Structure(t *testing.T) {
+	since := time.Now().Add(-24 * time.Hour)
+	until := time.Now()
+
+	timeRange := &TimeRange{
+		Since: &since,
+		Until: &until,
 	}
-	
-	if record.Path != "/api/users/123" {
-		t.Errorf("Expected Path to be '/api/users/123', got %s", record.Path)
+
+	assert.NotNil(t, timeRange.Since)
+	assert.NotNil(t, timeRange.Until)
+	assert.Equal(t, since, *timeRange.Since)
+	assert.Equal(t, until, *timeRange.Until)
+
+	// Test with nil values
+	emptyRange := &TimeRange{}
+	assert.Nil(t, emptyRange.Since)
+	assert.Nil(t, emptyRange.Until)
+}
+
+func TestIngestOptions_Structure(t *testing.T) {
+	since := time.Now().Add(-24 * time.Hour)
+	until := time.Now()
+
+	options := &IngestOptions{
+		LogFormat:       "common",
+		CustomRegex:     `^(\S+) - (\S+) \[([^\]]+)\]`,
+		SampleRate:      0.5,
+		TimeFilter: &TimeRange{
+			Since: &since,
+			Until: &until,
+		},
+		SensitiveKeys:   []string{"password", "token"},
+		RedactionPolicy: "mask",
+		MaxErrorSamples: 20,
 	}
-	
-	if record.Status != 200 {
-		t.Errorf("Expected Status to be 200, got %d", record.Status)
-	}
-	
-	if !record.Timestamp.Equal(now) {
-		t.Errorf("Expected Timestamp to be %v, got %v", now, record.Timestamp)
-	}
-	
-	if len(record.Query["include"]) != 1 || record.Query["include"][0] != "profile" {
-		t.Errorf("Expected Query include to be ['profile'], got %v", record.Query["include"])
-	}
-	
-	if len(record.Headers["authorization"]) != 1 || record.Headers["authorization"][0] != "Bearer token123" {
-		t.Errorf("Expected Headers authorization to be ['Bearer token123'], got %v", record.Headers["authorization"])
-	}
+
+	assert.Equal(t, "common", options.LogFormat)
+	assert.Equal(t, `^(\S+) - (\S+) \[([^\]]+)\]`, options.CustomRegex)
+	assert.Equal(t, 0.5, options.SampleRate)
+	assert.NotNil(t, options.TimeFilter)
+	assert.Equal(t, since, *options.TimeFilter.Since)
+	assert.Equal(t, until, *options.TimeFilter.Until)
+	assert.Equal(t, []string{"password", "token"}, options.SensitiveKeys)
+	assert.Equal(t, "mask", options.RedactionPolicy)
+	assert.Equal(t, 20, options.MaxErrorSamples)
 }

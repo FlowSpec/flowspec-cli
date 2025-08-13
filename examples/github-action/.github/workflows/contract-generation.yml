@@ -1,0 +1,189 @@
+name: Contract Generation from Traffic
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM
+  workflow_dispatch:
+    inputs:
+      log_source:
+        description: 'Log source (s3, local, api)'
+        required: true
+        default: 's3'
+        type: choice
+        options:
+          - s3
+          - local
+          - api
+      service_name:
+        description: 'Service name for contract'
+        required: true
+        default: 'api-service'
+        type: string
+
+jobs:
+  generate-contracts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install FlowSpec CLI
+        run: npm install -g @flowspec/cli
+        
+      - name: Download Production Logs (S3)
+        if: github.event.inputs.log_source == 's3' || github.event_name == 'schedule'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          # Download yesterday's logs
+          DATE=$(date -d "yesterday" +%Y-%m-%d)
+          aws s3 cp s3://my-app-logs/nginx-access-${DATE}.log.gz ./logs/
+          gunzip ./logs/nginx-access-${DATE}.log.gz
+          mv ./logs/nginx-access-${DATE}.log ./logs/nginx-access.log
+          
+      - name: Download Logs via API
+        if: github.event.inputs.log_source == 'api'
+        env:
+          LOG_API_TOKEN: ${{ secrets.LOG_API_TOKEN }}
+        run: |
+          # Download logs from logging API
+          curl -H "Authorization: Bearer $LOG_API_TOKEN" \
+            -o logs/nginx-access.log \
+            "https://api.logging-service.com/logs/nginx/yesterday"
+            
+      - name: Use Local Logs
+        if: github.event.inputs.log_source == 'local'
+        run: |
+          # Use committed sample logs for testing
+          cp sample-logs/nginx-access.log logs/
+          
+      - name: Generate Contract from Traffic
+        run: |
+          SERVICE_NAME="${{ github.event.inputs.service_name || 'api-service' }}"
+          
+          flowspec-cli explore \
+            --traffic ./logs/nginx-access.log \
+            --out ./contracts/generated-${SERVICE_NAME}.yaml \
+            --service-name "$SERVICE_NAME" \
+            --service-version "$(date +%Y.%m.%d)" \
+            --required-threshold 0.9 \
+            --min-samples 5
+            
+      - name: Validate Generated Contract
+        run: |
+          SERVICE_NAME="${{ github.event.inputs.service_name || 'api-service' }}"
+          
+          # Use existing trace for validation if available
+          if [ -f "./traces/${SERVICE_NAME}-trace.json" ]; then
+            flowspec-cli verify \
+              --path "./contracts/generated-${SERVICE_NAME}.yaml" \
+              --trace "./traces/${SERVICE_NAME}-trace.json" \
+              --ci
+          else
+            echo "No trace file found for validation, skipping verification"
+          fi
+          
+      - name: Compare with Existing Contract
+        run: |
+          SERVICE_NAME="${{ github.event.inputs.service_name || 'api-service' }}"
+          
+          if [ -f "./contracts/${SERVICE_NAME}.yaml" ]; then
+            echo "Comparing with existing contract..."
+            
+            # Show differences
+            if diff -u "./contracts/${SERVICE_NAME}.yaml" "./contracts/generated-${SERVICE_NAME}.yaml" > contract-diff.txt; then
+              echo "No changes detected in contract"
+              echo "CHANGES_DETECTED=false" >> $GITHUB_ENV
+            else
+              echo "Changes detected in contract:"
+              cat contract-diff.txt
+              echo "CHANGES_DETECTED=true" >> $GITHUB_ENV
+            fi
+          else
+            echo "No existing contract found, this will be a new contract"
+            echo "CHANGES_DETECTED=true" >> $GITHUB_ENV
+          fi
+          
+      - name: Create Pull Request
+        if: env.CHANGES_DETECTED == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'Update service contracts from traffic analysis'
+          title: 'Update ${{ github.event.inputs.service_name || "api-service" }} contract'
+          body: |
+            ## Automated Contract Update
+            
+            This PR contains an updated service contract generated from production traffic analysis.
+            
+            **Service**: ${{ github.event.inputs.service_name || 'api-service' }}
+            **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            **Log Source**: ${{ github.event.inputs.log_source || 's3' }}
+            
+            ### Changes
+            
+            The contract has been updated based on recent traffic patterns. Please review the changes and ensure they align with your service specifications.
+            
+            ### Validation
+            
+            - [ ] Contract syntax is valid
+            - [ ] Generated endpoints match expected service behavior
+            - [ ] Required/optional fields are correctly identified
+            - [ ] Status code ranges are appropriate
+            
+            ### Next Steps
+            
+            1. Review the generated contract
+            2. Test against your integration traces
+            3. Merge if the contract accurately represents your service
+            
+            ---
+            *This PR was automatically generated by the FlowSpec contract generation workflow.*
+          branch: update-contracts-${{ github.event.inputs.service_name || 'api-service' }}
+          delete-branch: true
+          
+      - name: Upload Generated Contracts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: generated-contracts
+          path: |
+            contracts/generated-*.yaml
+            contract-diff.txt
+          retention-days: 30
+          
+      - name: Notify Slack
+        if: env.CHANGES_DETECTED == 'true'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: |
+            📋 New service contract generated for ${{ github.event.inputs.service_name || 'api-service' }}
+            
+            A pull request has been created with the updated contract based on production traffic analysis.
+            
+            Please review: ${{ github.server_url }}/${{ github.repository }}/pulls
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          
+      - name: Summary
+        run: |
+          echo "## Contract Generation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ github.event.inputs.service_name || 'api-service' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Log Source**: ${{ github.event.inputs.log_source || 's3' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Changes Detected**: ${{ env.CHANGES_DETECTED }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ env.CHANGES_DETECTED }}" == "true" ]; then
+            echo "✅ Contract updated and PR created" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No changes detected in contract" >> $GITHUB_STEP_SUMMARY
+          fi

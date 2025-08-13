@@ -58,45 +58,115 @@ func (y *YAMLFileParser) ParseFile(filepath string) ([]models.ServiceSpec, []mod
 	var spec models.ServiceSpec
 	err = yaml.Unmarshal(data, &spec)
 	if err != nil {
-		// Try to extract line information from YAML error
-		line := 0
-		if yamlErr, ok := err.(*yaml.TypeError); ok {
-			// yaml.TypeError contains line information
-			errors = append(errors, models.ParseError{
-				File:    filepath,
-				Line:    line,
-				Message: fmt.Sprintf("YAML parsing error: %s", yamlErr.Error()),
-			})
-		} else {
-			errors = append(errors, models.ParseError{
-				File:    filepath,
-				Line:    line,
-				Message: fmt.Sprintf("YAML parsing error: %s", err.Error()),
-			})
-		}
-		return specs, errors
-	}
+		// Try to extract line and column information from YAML error
+		lineNum, colNum := extractLineColumnFromYAMLError(err)
 
-	// Ensure this is a YAML format spec (has apiVersion and kind)
-	if !spec.IsYAMLFormat() {
 		errors = append(errors, models.ParseError{
 			File:    filepath,
-			Line:    0,
-			Message: "YAML file must contain apiVersion and kind fields",
+			Line:    lineNum,
+			Column:  colNum,
+			Message: fmt.Sprintf("failed to parse YAML: %s", err.Error()),
 		})
 		return specs, errors
 	}
 
-	// Validate the parsed ServiceSpec
-	if err := spec.Validate(); err != nil {
+	// Create schema validator
+	validator, err := NewSchemaValidator()
+	if err != nil {
 		errors = append(errors, models.ParseError{
 			File:    filepath,
 			Line:    0,
-			Message: fmt.Sprintf("validation error: %s", err.Error()),
+			Message: fmt.Sprintf("failed to create schema validator: %s", err.Error()),
 		})
 		return specs, errors
 	}
+
+	// Validate using JSON Schema
+	schemaErrors := validator.ValidateServiceSpec(&spec)
+	for _, schemaError := range schemaErrors {
+		schemaError.File = filepath
+		errors = append(errors, schemaError)
+	}
+
+	// If there are validation errors, don't return the spec
+	if len(errors) > 0 {
+		return specs, errors
+	}
+
+	// Set source file information
+	spec.SourceFile = filepath
+	spec.LineNumber = 1 // YAML files start at line 1
 
 	specs = append(specs, spec)
 	return specs, errors
+}
+
+// extractLineColumnFromYAMLError attempts to extract line and column information from YAML error
+func extractLineColumnFromYAMLError(err error) (int, int) {
+	if err == nil {
+		return 0, 0
+	}
+
+	errMsg := err.Error()
+	
+	// Handle yaml.TypeError which contains multiple errors
+	if yamlErr, ok := err.(*yaml.TypeError); ok {
+		return extractLineColumnFromYAMLErrorMessages(yamlErr.Errors)
+	}
+
+	// Handle other YAML errors that might contain line information
+	return extractLineColumnFromErrorMessage(errMsg)
+}
+
+// extractLineColumnFromYAMLErrorMessages extracts line/column from YAML error messages
+func extractLineColumnFromYAMLErrorMessages(errors []string) (int, int) {
+	for _, errMsg := range errors {
+		if line, col := extractLineColumnFromErrorMessage(errMsg); line > 0 {
+			return line, col
+		}
+	}
+	return 0, 0
+}
+
+// extractLineColumnFromErrorMessage extracts line and column from a single error message
+func extractLineColumnFromErrorMessage(errMsg string) (int, int) {
+	// YAML v3 error messages often contain line information like "line 5:" or "line 5, column 10:"
+	if strings.Contains(errMsg, "line ") {
+		// Try to extract line number - this is a best effort
+		parts := strings.Split(errMsg, "line ")
+		if len(parts) > 1 {
+			linePart := parts[1]
+			
+			// Check if there's also column information
+			if strings.Contains(linePart, "column ") {
+				// Format: "line 5, column 10:"
+				lineColParts := strings.Split(linePart, ",")
+				if len(lineColParts) >= 2 {
+					// Extract line
+					lineStr := strings.TrimSpace(strings.Split(lineColParts[0], ":")[0])
+					var lineNum int
+					if _, err := fmt.Sscanf(lineStr, "%d", &lineNum); err == nil {
+						// Extract column
+						colPart := strings.TrimSpace(lineColParts[1])
+						if strings.HasPrefix(colPart, "column ") {
+							colStr := strings.TrimSpace(strings.Split(strings.TrimPrefix(colPart, "column "), ":")[0])
+							var colNum int
+							if _, err := fmt.Sscanf(colStr, "%d", &colNum); err == nil {
+								return lineNum, colNum
+							}
+						}
+						return lineNum, 0
+					}
+				}
+			} else {
+				// Format: "line 5:"
+				lineStr := strings.TrimSpace(strings.Split(linePart, ":")[0])
+				var lineNum int
+				if _, err := fmt.Sscanf(lineStr, "%d", &lineNum); err == nil {
+					return lineNum, 0
+				}
+			}
+		}
+	}
+	return 0, 0
 }

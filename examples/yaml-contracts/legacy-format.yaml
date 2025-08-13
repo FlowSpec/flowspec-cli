@@ -1,0 +1,20 @@
+# Legacy format example (deprecated but still supported)
+# This shows the old format with methods array instead of operations array
+
+apiVersion: flowspec/v1alpha1
+kind: ServiceSpec
+metadata:
+  name: legacy-service
+  version: v1.0.0
+spec:
+  endpoints:
+    - path: /api/users/{id}
+      methods: ["GET", "PUT", "DELETE"]
+      statusCodes: [200, 400, 404]
+      requiredHeaders: ["authorization"]
+      optionalHeaders: ["accept-language"]
+    - path: /api/users
+      methods: ["GET", "POST"]
+      statusCodes: [200, 201, 400, 422]
+      requiredHeaders: ["content-type"]
+      optionalQuery: ["page", "limit"]

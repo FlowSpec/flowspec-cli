@@ -87,16 +87,16 @@ type OptionalFieldsSpec struct {
 
 // EndpointStats contains statistics for an endpoint
 type EndpointStats struct {
-	SupportCount int       `json:"supportCount"`
-	FirstSeen    time.Time `json:"firstSeen"`
-	LastSeen     time.Time `json:"lastSeen"`
+	SupportCount int       `json:"supportCount" yaml:"supportCount"`
+	FirstSeen    time.Time `json:"firstSeen" yaml:"firstSeen"`
+	LastSeen     time.Time `json:"lastSeen" yaml:"lastSeen"`
 }
 
 // OperationStats contains statistics for a specific operation
 type OperationStats struct {
-	SupportCount int       `json:"supportCount"`
-	FirstSeen    time.Time `json:"firstSeen"`
-	LastSeen     time.Time `json:"lastSeen"`
+	SupportCount int       `json:"supportCount" yaml:"supportCount"`
+	FirstSeen    time.Time `json:"firstSeen" yaml:"firstSeen"`
+	LastSeen     time.Time `json:"lastSeen" yaml:"lastSeen"`
 }
 
 // ParseResult contains the results of parsing ServiceSpecs from source files
@@ -108,9 +108,11 @@ type ParseResult struct {
 
 // ParseError represents an error that occurred during parsing
 type ParseError struct {
-	File    string `json:"file"`
-	Line    int    `json:"line"`
-	Message string `json:"message"`
+	File        string `json:"file"`
+	Line        int    `json:"line"`
+	Column      int    `json:"column,omitempty"`
+	Message     string `json:"message"`
+	JSONPointer string `json:"jsonPointer,omitempty"` // JSON Pointer for YAML validation errors
 }
 
 // IsYAMLFormat returns true if this ServiceSpec uses the new YAML format
@@ -484,16 +486,38 @@ type AlignmentReport struct {
 
 // AlignmentSummary provides summary statistics for the alignment report
 type AlignmentSummary struct {
-	Total                int     `json:"total"`
-	Success              int     `json:"success"`
-	Failed               int     `json:"failed"`
-	Skipped              int     `json:"skipped"`
-	SuccessRate          float64 `json:"successRate"`          // Success rate as percentage (0.0 to 1.0)
-	FailureRate          float64 `json:"failureRate"`          // Failure rate as percentage (0.0 to 1.0)
-	SkipRate             float64 `json:"skipRate"`             // Skip rate as percentage (0.0 to 1.0)
-	AverageExecutionTime int64   `json:"averageExecutionTime"` // Average execution time per spec in nanoseconds
-	TotalAssertions      int     `json:"totalAssertions"`      // Total number of assertions evaluated
-	FailedAssertions     int     `json:"failedAssertions"`     // Number of failed assertions
+	Total                int                        `json:"total"`
+	Success              int                        `json:"success"`
+	Failed               int                        `json:"failed"`
+	Skipped              int                        `json:"skipped"`
+	SuccessRate          float64                    `json:"successRate"`          // Success rate as percentage (0.0 to 1.0)
+	FailureRate          float64                    `json:"failureRate"`          // Failure rate as percentage (0.0 to 1.0)
+	SkipRate             float64                    `json:"skipRate"`             // Skip rate as percentage (0.0 to 1.0)
+	AverageExecutionTime int64                      `json:"averageExecutionTime"` // Average execution time per spec in nanoseconds
+	TotalAssertions      int                        `json:"totalAssertions"`      // Total number of assertions evaluated
+	FailedAssertions     int                        `json:"failedAssertions"`     // Number of failed assertions
+	OperationSummary     *OperationLevelSummary     `json:"operationSummary,omitempty"` // Operation-level statistics
+}
+
+// OperationLevelSummary provides operation-level statistics for YAML format specs
+type OperationLevelSummary struct {
+	TotalOperations    int                           `json:"totalOperations"`    // Total number of operations across all specs
+	SuccessOperations  int                           `json:"successOperations"`  // Number of successful operations
+	FailedOperations   int                           `json:"failedOperations"`   // Number of failed operations
+	SkippedOperations  int                           `json:"skippedOperations"`  // Number of skipped operations
+	OperationDetails   map[string]*OperationSummary  `json:"operationDetails"`   // Details by operation (path+method)
+	TotalSampleCount   int                           `json:"totalSampleCount"`   // Total number of spans matched across all operations
+}
+
+// OperationSummary provides summary for a specific operation
+type OperationSummary struct {
+	Path             string          `json:"path"`
+	Method           string          `json:"method"`
+	Status           AlignmentStatus `json:"status"`
+	SampleCount      int             `json:"sampleCount"`      // Number of spans that matched this operation
+	AssertionsTotal  int             `json:"assertionsTotal"`  // Total assertions for this operation
+	AssertionsPassed int             `json:"assertionsPassed"` // Passed assertions for this operation
+	AssertionsFailed int             `json:"assertionsFailed"` // Failed assertions for this operation
 }
 
 // PerformanceInfo contains performance monitoring data
@@ -508,17 +532,18 @@ type PerformanceInfo struct {
 
 // AlignmentResult represents the result of aligning a single ServiceSpec with trace data
 type AlignmentResult struct {
-	SpecOperationID  string             `json:"specOperationId"`
-	Status           AlignmentStatus    `json:"status"`
-	Details          []ValidationDetail `json:"details"`
-	ExecutionTime    int64              `json:"executionTime"`          // Duration in nanoseconds
-	StartTime        int64              `json:"startTime"`              // Start timestamp in Unix nanoseconds
-	EndTime          int64              `json:"endTime"`                // End timestamp in Unix nanoseconds
-	MatchedSpans     []string           `json:"matchedSpans"`           // IDs of spans that matched this spec
-	AssertionsTotal  int                `json:"assertionsTotal"`        // Total number of assertions evaluated
-	AssertionsPassed int                `json:"assertionsPassed"`       // Number of assertions that passed
-	AssertionsFailed int                `json:"assertionsFailed"`       // Number of assertions that failed
-	ErrorMessage     string             `json:"errorMessage,omitempty"` // Error message if processing failed
+	SpecOperationID  string                        `json:"specOperationId"`
+	Status           AlignmentStatus               `json:"status"`
+	Details          []ValidationDetail            `json:"details"`
+	ExecutionTime    int64                         `json:"executionTime"`          // Duration in nanoseconds
+	StartTime        int64                         `json:"startTime"`              // Start timestamp in Unix nanoseconds
+	EndTime          int64                         `json:"endTime"`                // End timestamp in Unix nanoseconds
+	MatchedSpans     []string                      `json:"matchedSpans"`           // IDs of spans that matched this spec
+	AssertionsTotal  int                           `json:"assertionsTotal"`        // Total number of assertions evaluated
+	AssertionsPassed int                           `json:"assertionsPassed"`       // Number of assertions that passed
+	AssertionsFailed int                           `json:"assertionsFailed"`       // Number of assertions that failed
+	ErrorMessage     string                        `json:"errorMessage,omitempty"` // Error message if processing failed
+	OperationResults map[string]*OperationResult   `json:"operationResults,omitempty"` // Results by operation (path+method)
 }
 
 // AlignmentStatus represents the status of an alignment result
@@ -530,9 +555,22 @@ const (
 	StatusSkipped AlignmentStatus = "SKIPPED"
 )
 
+// OperationResult represents the result of validating a specific operation (path+method)
+type OperationResult struct {
+	Path             string             `json:"path"`
+	Method           string             `json:"method"`
+	Status           AlignmentStatus    `json:"status"`
+	Details          []ValidationDetail `json:"details"`
+	MatchedSpans     []string           `json:"matchedSpans"`
+	AssertionsTotal  int                `json:"assertionsTotal"`
+	AssertionsPassed int                `json:"assertionsPassed"`
+	AssertionsFailed int                `json:"assertionsFailed"`
+	SampleCount      int                `json:"sampleCount"` // Number of spans that matched this operation
+}
+
 // ValidationDetail provides detailed information about a specific validation
 type ValidationDetail struct {
-	Type          string                 `json:"type"` // "precondition" | "postcondition"
+	Type          string                 `json:"type"` // "precondition" | "postcondition" | "status_code" | "required_header" | "required_query"
 	Expression    string                 `json:"expression"`
 	Expected      interface{}            `json:"expected"`
 	Actual        interface{}            `json:"actual"`
@@ -541,6 +579,7 @@ type ValidationDetail struct {
 	FailureReason string                 `json:"failureReason,omitempty"` // Detailed analysis of why the assertion failed
 	ContextInfo   map[string]interface{} `json:"contextInfo,omitempty"`   // Additional context information for debugging
 	Suggestions   []string               `json:"suggestions,omitempty"`   // Actionable suggestions for fixing the failure
+	Operation     string                 `json:"operation,omitempty"`     // Operation identifier (path+method) for YAML format
 }
 
 // AddResult adds an alignment result to the report and updates the summary
@@ -559,6 +598,14 @@ func (ar *AlignmentReport) updateSummary() {
 	totalAssertions := 0
 	failedAssertions := 0
 
+	// Operation-level statistics
+	operationDetails := make(map[string]*OperationSummary)
+	totalOperations := 0
+	successOperations := 0
+	failedOperations := 0
+	skippedOperations := 0
+	totalSampleCount := 0
+
 	for _, result := range ar.Results {
 		switch result.Status {
 		case StatusSuccess:
@@ -572,6 +619,34 @@ func (ar *AlignmentReport) updateSummary() {
 		totalExecutionTime += result.ExecutionTime
 		totalAssertions += result.AssertionsTotal
 		failedAssertions += result.AssertionsFailed
+
+		// Process operation-level results if available
+		if result.OperationResults != nil {
+			for operationKey, operationResult := range result.OperationResults {
+				totalOperations++
+				totalSampleCount += operationResult.SampleCount
+
+				switch operationResult.Status {
+				case StatusSuccess:
+					successOperations++
+				case StatusFailed:
+					failedOperations++
+				case StatusSkipped:
+					skippedOperations++
+				}
+
+				// Create operation summary
+				operationDetails[operationKey] = &OperationSummary{
+					Path:             operationResult.Path,
+					Method:           operationResult.Method,
+					Status:           operationResult.Status,
+					SampleCount:      operationResult.SampleCount,
+					AssertionsTotal:  operationResult.AssertionsTotal,
+					AssertionsPassed: operationResult.AssertionsPassed,
+					AssertionsFailed: operationResult.AssertionsFailed,
+				}
+			}
+		}
 	}
 
 	ar.Summary = AlignmentSummary{
@@ -581,6 +656,18 @@ func (ar *AlignmentReport) updateSummary() {
 		Skipped:          skipped,
 		TotalAssertions:  totalAssertions,
 		FailedAssertions: failedAssertions,
+	}
+
+	// Add operation-level summary if we have operation results
+	if totalOperations > 0 {
+		ar.Summary.OperationSummary = &OperationLevelSummary{
+			TotalOperations:   totalOperations,
+			SuccessOperations: successOperations,
+			FailedOperations:  failedOperations,
+			SkippedOperations: skippedOperations,
+			OperationDetails:  operationDetails,
+			TotalSampleCount:  totalSampleCount,
+		}
 	}
 
 	// Calculate rates
@@ -742,6 +829,65 @@ func NewAlignmentResult(operationID string) *AlignmentResult {
 		Details:         []ValidationDetail{},
 		ExecutionTime:   0,
 	}
+}
+
+// GetOperationSuccessRate returns the success rate for operations (0.0 to 1.0)
+func (ar *AlignmentReport) GetOperationSuccessRate() float64 {
+	if ar.Summary.OperationSummary == nil || ar.Summary.OperationSummary.TotalOperations == 0 {
+		return 0.0
+	}
+	return float64(ar.Summary.OperationSummary.SuccessOperations) / float64(ar.Summary.OperationSummary.TotalOperations)
+}
+
+// GetOperationFailureRate returns the failure rate for operations (0.0 to 1.0)
+func (ar *AlignmentReport) GetOperationFailureRate() float64 {
+	if ar.Summary.OperationSummary == nil || ar.Summary.OperationSummary.TotalOperations == 0 {
+		return 0.0
+	}
+	return float64(ar.Summary.OperationSummary.FailedOperations) / float64(ar.Summary.OperationSummary.TotalOperations)
+}
+
+// HasOperationFailures returns true if any operations have failed
+func (ar *AlignmentReport) HasOperationFailures() bool {
+	return ar.Summary.OperationSummary != nil && ar.Summary.OperationSummary.FailedOperations > 0
+}
+
+// GetFailedOperations returns a list of failed operations
+func (ar *AlignmentReport) GetFailedOperations() []*OperationSummary {
+	if ar.Summary.OperationSummary == nil {
+		return nil
+	}
+
+	var failedOps []*OperationSummary
+	for _, opSummary := range ar.Summary.OperationSummary.OperationDetails {
+		if opSummary.Status == StatusFailed {
+			failedOps = append(failedOps, opSummary)
+		}
+	}
+	return failedOps
+}
+
+// GetOperationsByStatus returns operations filtered by status
+func (ar *AlignmentReport) GetOperationsByStatus(status AlignmentStatus) []*OperationSummary {
+	if ar.Summary.OperationSummary == nil {
+		return nil
+	}
+
+	var operations []*OperationSummary
+	for _, opSummary := range ar.Summary.OperationSummary.OperationDetails {
+		if opSummary.Status == status {
+			operations = append(operations, opSummary)
+		}
+	}
+	return operations
+}
+
+// GetTotalOperationSamples returns the total number of span samples across all operations
+func (ar *AlignmentReport) GetTotalOperationSamples() int {
+	if ar.Summary.OperationSummary == nil {
+		return 0
+	}
+	return ar.Summary.OperationSummary.TotalSampleCount
 }
 
 // NewValidationDetail creates a new validation detail

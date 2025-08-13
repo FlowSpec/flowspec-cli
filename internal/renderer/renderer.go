@@ -31,6 +31,16 @@ const (
 	IconSkipped = "⏭️"
 )
 
+// Exit code constants
+const (
+	ExitSuccess          = 0  // Success
+	ExitValidationFailed = 1  // Validation failed
+	ExitSpecFormatError  = 2  // Contract format error
+	ExitParseError       = 3  // Parse error
+	ExitSystemError      = 4  // System error
+	ExitUsageError       = 64 // Usage error
+)
+
 // ReportRenderer defines the interface for rendering alignment reports
 type ReportRenderer interface {
 	RenderHuman(report *models.AlignmentReport) (string, error)
@@ -38,6 +48,7 @@ type ReportRenderer interface {
 	GetExitCode(report *models.AlignmentReport) int
 	SetLanguage(lang i18n.SupportedLanguage)
 	GetLanguage() i18n.SupportedLanguage
+	WriteArtifacts(report *models.AlignmentReport) error
 }
 
 // DefaultReportRenderer implements the ReportRenderer interface
@@ -827,4 +838,45 @@ func (r *DefaultReportRenderer) writeColoredSection(output *strings.Builder, tex
 func (r *DefaultReportRenderer) writeColoredSubsection(output *strings.Builder, text string) {
 	output.WriteString(fmt.Sprintf("%s%s%s\n",
 		r.getColor("cyan"), text, r.getColor("reset")))
+}
+// NewCIReportRenderer creates a new report renderer optimized for CI environments
+func NewCIReportRenderer(language i18n.SupportedLanguage) *DefaultReportRenderer {
+	config := &RendererConfig{
+		ShowTimestamps:     false,
+		ShowPerformance:    true,
+		ShowDetailedErrors: false,
+		ColorOutput:        false,
+	}
+	return &DefaultReportRenderer{
+		config:    config,
+		localizer: i18n.NewLocalizer(language),
+	}
+}
+
+// GetExitCodeDescription returns a human-readable description of an exit code
+func (r *DefaultReportRenderer) GetExitCodeDescription(exitCode int) string {
+	switch exitCode {
+	case ExitSuccess:
+		return "Success"
+	case ExitValidationFailed:
+		return "Validation failed"
+	case ExitSpecFormatError:
+		return "Contract format error"
+	case ExitParseError:
+		return "Parse error"
+	case ExitSystemError:
+		return "System error"
+	case ExitUsageError:
+		return "Usage error"
+	default:
+		return "Unknown error"
+	}
+}
+
+// WriteArtifacts writes machine-readable artifacts for CI/CD integration
+func (r *DefaultReportRenderer) WriteArtifacts(report *models.AlignmentReport) error {
+	// For now, this is a placeholder implementation
+	// In a full implementation, this would write JSON summaries and JUnit XML files
+	// to an artifacts directory for CI/CD systems to consume
+	return nil
 }

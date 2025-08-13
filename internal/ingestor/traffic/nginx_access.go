@@ -265,6 +265,9 @@ func (n *NginxAccessIngestor) shouldSkipLine() bool {
 
 // isWithinTimeRange checks if a timestamp is within the configured time range
 func (n *NginxAccessIngestor) isWithinTimeRange(timestamp time.Time) bool {
+	if n.options.TimeFilter == nil {
+		return true
+	}
 	if n.options.TimeFilter.Since != nil && timestamp.Before(*n.options.TimeFilter.Since) {
 		return false
 	}

@@ -1,0 +1,92 @@
+{
+  "traceID": "user-service-trace-001",
+  "spans": [
+    {
+      "traceID": "user-service-trace-001",
+      "spanID": "span001",
+      "operationName": "GET /api/users/123",
+      "startTime": 1722508215000000,
+      "duration": 45000,
+      "tags": [
+        {"key": "http.method", "value": "GET"},
+        {"key": "http.url", "value": "/api/users/123"},
+        {"key": "http.status_code", "value": 200},
+        {"key": "http.request.header.authorization", "value": "Bearer token123"},
+        {"key": "http.request.header.accept-language", "value": "en-US"}
+      ],
+      "process": {
+        "serviceName": "user-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "user-service-trace-001",
+      "spanID": "span002",
+      "operationName": "POST /api/users",
+      "startTime": 1722508220000000,
+      "duration": 120000,
+      "tags": [
+        {"key": "http.method", "value": "POST"},
+        {"key": "http.url", "value": "/api/users"},
+        {"key": "http.status_code", "value": 201},
+        {"key": "http.request.header.content-type", "value": "application/json"}
+      ],
+      "process": {
+        "serviceName": "user-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "user-service-trace-001",
+      "spanID": "span003",
+      "operationName": "PUT /api/users/456",
+      "startTime": 1722508225000000,
+      "duration": 80000,
+      "tags": [
+        {"key": "http.method", "value": "PUT"},
+        {"key": "http.url", "value": "/api/users/456"},
+        {"key": "http.status_code", "value": 200},
+        {"key": "http.request.header.authorization", "value": "Bearer token456"},
+        {"key": "http.request.header.content-type", "value": "application/json"}
+      ],
+      "process": {
+        "serviceName": "user-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "user-service-trace-001",
+      "spanID": "span004",
+      "operationName": "GET /api/users/789/profile",
+      "startTime": 1722508230000000,
+      "duration": 60000,
+      "tags": [
+        {"key": "http.method", "value": "GET"},
+        {"key": "http.url", "value": "/api/users/789/profile?fields=name,email"},
+        {"key": "http.status_code", "value": 200},
+        {"key": "http.request.header.authorization", "value": "Bearer token789"}
+      ],
+      "process": {
+        "serviceName": "user-service",
+        "tags": []
+      }
+    },
+    {
+      "traceID": "user-service-trace-001",
+      "spanID": "span005",
+      "operationName": "POST /api/auth/login",
+      "startTime": 1722508235000000,
+      "duration": 150000,
+      "tags": [
+        {"key": "http.method", "value": "POST"},
+        {"key": "http.url", "value": "/api/auth/login"},
+        {"key": "http.status_code", "value": 200},
+        {"key": "http.request.header.content-type", "value": "application/json"}
+      ],
+      "process": {
+        "serviceName": "user-service",
+        "tags": []
+      }
+    }
+  ]
+}

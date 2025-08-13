@@ -100,6 +100,12 @@ type AttributeMatcher struct {
 	attributeKey string
 }
 
+// EndpointMatcher matches specs to spans by endpoint path and method (for YAML format)
+type EndpointMatcher struct{}
+
+// OperationMatcher matches individual operations within endpoints (for YAML format)
+type OperationMatcher struct{}
+
 // ValidationContext manages the context during validation
 type ValidationContext struct {
 	spec      models.ServiceSpec
@@ -155,7 +161,8 @@ func NewSpecMatcher() *SpecMatcher {
 	}
 
 	// Register default matching strategies in order of priority
-	matcher.AddStrategy(&OperationIDMatcher{})
+	matcher.AddStrategy(&EndpointMatcher{})    // Highest priority for YAML format
+	matcher.AddStrategy(&OperationIDMatcher{}) // Legacy format
 	matcher.AddStrategy(&SpanNameMatcher{})
 	matcher.AddStrategy(&AttributeMatcher{attributeKey: "operation.name"})
 
@@ -318,9 +325,71 @@ func (engine *DefaultAlignmentEngine) AlignSingleSpec(
 	}
 
 	startTime := time.Now()
-	result := models.NewAlignmentResult(spec.OperationID)
+	
+	// Handle both legacy and YAML formats
+	var operationID string
+	if spec.IsYAMLFormat() {
+		operationID = fmt.Sprintf("%s-%s", spec.Metadata.Name, spec.Metadata.Version)
+	} else {
+		operationID = spec.OperationID
+	}
+	
+	result := models.NewAlignmentResult(operationID)
 	result.StartTime = startTime.UnixNano()
 
+	// Handle YAML format with operations
+	if spec.IsYAMLFormat() {
+		return engine.alignYAMLSpec(spec, traceData, result, startTime)
+	}
+
+	// Handle legacy format
+	return engine.alignLegacySpec(spec, traceData, result, startTime)
+}
+
+// SetEvaluator implements the AlignmentEngine interface
+func (engine *DefaultAlignmentEngine) SetEvaluator(evaluator AssertionEvaluator) {
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+	engine.evaluator = evaluator
+}
+
+// GetEvaluator implements the AlignmentEngine interface
+func (engine *DefaultAlignmentEngine) GetEvaluator() AssertionEvaluator {
+	engine.mu.RLock()
+	defer engine.mu.RUnlock()
+	return engine.evaluator
+}
+
+// alignYAMLSpec handles alignment for YAML format specs
+func (engine *DefaultAlignmentEngine) alignYAMLSpec(
+	spec models.ServiceSpec,
+	traceData *models.TraceData,
+	result *models.AlignmentResult,
+	startTime time.Time,
+) (*models.AlignmentResult, error) {
+	// Process each endpoint and its operations
+	for _, endpoint := range spec.Spec.Endpoints {
+		for _, operation := range endpoint.Operations {
+			if err := engine.alignOperation(endpoint, operation, traceData, result); err != nil {
+				return nil, fmt.Errorf("failed to align operation %s %s: %w", operation.Method, endpoint.Path, err)
+			}
+		}
+	}
+
+	// Finalize timing
+	endTime := time.Now()
+	result.EndTime = endTime.UnixNano()
+	result.ExecutionTime = endTime.Sub(startTime).Nanoseconds()
+	return result, nil
+}
+
+// alignLegacySpec handles alignment for legacy format specs
+func (engine *DefaultAlignmentEngine) alignLegacySpec(
+	spec models.ServiceSpec,
+	traceData *models.TraceData,
+	result *models.AlignmentResult,
+	startTime time.Time,
+) (*models.AlignmentResult, error) {
 	// Find matching spans
 	matcher := NewSpecMatcher()
 	matchingSpans, err := matcher.FindMatchingSpans(spec, traceData)
@@ -368,18 +437,73 @@ func (engine *DefaultAlignmentEngine) AlignSingleSpec(
 	return result, nil
 }
 
-// SetEvaluator implements the AlignmentEngine interface
-func (engine *DefaultAlignmentEngine) SetEvaluator(evaluator AssertionEvaluator) {
-	engine.mu.Lock()
-	defer engine.mu.Unlock()
-	engine.evaluator = evaluator
-}
+// alignOperation aligns a specific operation within an endpoint
+func (engine *DefaultAlignmentEngine) alignOperation(
+	endpoint models.EndpointSpec,
+	operation models.OperationSpec,
+	traceData *models.TraceData,
+	result *models.AlignmentResult,
+) error {
+	operationKey := fmt.Sprintf("%s %s", operation.Method, endpoint.Path)
+	
+	// Initialize operation result if not exists
+	if result.OperationResults == nil {
+		result.OperationResults = make(map[string]*models.OperationResult)
+	}
+	
+	operationResult := &models.OperationResult{
+		Path:             endpoint.Path,
+		Method:           operation.Method,
+		Status:           models.StatusSkipped,
+		Details:          []models.ValidationDetail{},
+		MatchedSpans:     []string{},
+		AssertionsTotal:  0,
+		AssertionsPassed: 0,
+		AssertionsFailed: 0,
+		SampleCount:      0,
+	}
+	
+	result.OperationResults[operationKey] = operationResult
 
-// GetEvaluator implements the AlignmentEngine interface
-func (engine *DefaultAlignmentEngine) GetEvaluator() AssertionEvaluator {
-	engine.mu.RLock()
-	defer engine.mu.RUnlock()
-	return engine.evaluator
+	// Find matching spans for this specific operation
+	matchingSpans := engine.findMatchingSpansForOperation(endpoint, operation, traceData)
+	operationResult.SampleCount = len(matchingSpans)
+
+	if len(matchingSpans) == 0 {
+		detail := models.NewValidationDetail(
+			"matching", "span_match", "found", "not_found",
+			fmt.Sprintf("No matching spans found for operation: %s %s", operation.Method, endpoint.Path))
+		detail.Operation = operationKey
+		
+		if engine.config.SkipMissingSpans {
+			detail.Actual = "found" // Mark as found to indicate skipped
+			operationResult.Status = models.StatusSkipped
+		} else {
+			operationResult.Status = models.StatusFailed
+		}
+		
+		operationResult.Details = append(operationResult.Details, *detail)
+		result.AddValidationDetail(*detail)
+		return nil
+	}
+
+	// Record matched span IDs
+	for _, span := range matchingSpans {
+		operationResult.MatchedSpans = append(operationResult.MatchedSpans, span.SpanID)
+		result.MatchedSpans = append(result.MatchedSpans, span.SpanID)
+	}
+
+	// Evaluate operation-level validations for each matching span
+	for _, span := range matchingSpans {
+		if err := engine.evaluateOperationForSpan(endpoint, operation, span, traceData, result, operationResult, operationKey); err != nil {
+			return fmt.Errorf("failed to evaluate operation for span %s: %w", span.SpanID, err)
+		}
+	}
+
+	// Update operation status based on validation results
+	engine.updateOperationStatus(operationResult)
+
+	return nil
 }
 
 // alignmentWorker processes specs concurrently
@@ -397,6 +521,385 @@ func (engine *DefaultAlignmentEngine) alignmentWorker(
 			resultChan <- result
 		}
 	}
+}
+
+// findMatchingSpansForOperation finds spans that match a specific operation
+func (engine *DefaultAlignmentEngine) findMatchingSpansForOperation(
+	endpoint models.EndpointSpec,
+	operation models.OperationSpec,
+	traceData *models.TraceData,
+) []*models.Span {
+	var matchingSpans []*models.Span
+
+	for _, span := range traceData.Spans {
+		if engine.spanMatchesOperation(span, endpoint, operation) {
+			matchingSpans = append(matchingSpans, span)
+		}
+	}
+
+	return matchingSpans
+}
+
+// spanMatchesOperation checks if a span matches the given operation
+func (engine *DefaultAlignmentEngine) spanMatchesOperation(
+	span *models.Span,
+	endpoint models.EndpointSpec,
+	operation models.OperationSpec,
+) bool {
+	// Check HTTP method
+	if method, ok := span.Attributes["http.method"].(string); ok {
+		if method != operation.Method {
+			return false
+		}
+	}
+
+	// Check path pattern matching
+	if path, ok := span.Attributes["http.target"].(string); ok {
+		if engine.pathMatches(path, endpoint.Path) {
+			return true
+		}
+	}
+
+	// Also check http.route attribute
+	if route, ok := span.Attributes["http.route"].(string); ok {
+		if engine.pathMatches(route, endpoint.Path) {
+			return true
+		}
+	}
+
+	// Check span name for operation matching
+	operationName := fmt.Sprintf("%s %s", operation.Method, endpoint.Path)
+	if span.Name == operationName {
+		return true
+	}
+
+	return false
+}
+
+// pathMatches checks if a request path matches an endpoint path pattern
+func (engine *DefaultAlignmentEngine) pathMatches(requestPath, endpointPath string) bool {
+	// Simple exact match for now
+	if requestPath == endpointPath {
+		return true
+	}
+
+	// TODO: Implement more sophisticated path pattern matching
+	// This should handle parameterized paths like /api/users/{id}
+	// For now, we'll use a simple approach
+	return engine.matchPathPattern(requestPath, endpointPath)
+}
+
+// matchPathPattern performs pattern matching for parameterized paths
+func (engine *DefaultAlignmentEngine) matchPathPattern(requestPath, pattern string) bool {
+	// Split paths into segments
+	requestSegments := strings.Split(strings.Trim(requestPath, "/"), "/")
+	patternSegments := strings.Split(strings.Trim(pattern, "/"), "/")
+
+	// Must have same number of segments
+	if len(requestSegments) != len(patternSegments) {
+		return false
+	}
+
+	// Check each segment
+	for i, patternSegment := range patternSegments {
+		if i >= len(requestSegments) {
+			return false
+		}
+
+		requestSegment := requestSegments[i]
+
+		// If pattern segment is a parameter (starts with {), it matches any value
+		if strings.HasPrefix(patternSegment, "{") && strings.HasSuffix(patternSegment, "}") {
+			continue
+		}
+
+		// Otherwise, must be exact match
+		if requestSegment != patternSegment {
+			return false
+		}
+	}
+
+	return true
+}
+
+// evaluateOperationForSpan evaluates an operation against a specific span
+func (engine *DefaultAlignmentEngine) evaluateOperationForSpan(
+	endpoint models.EndpointSpec,
+	operation models.OperationSpec,
+	span *models.Span,
+	traceData *models.TraceData,
+	result *models.AlignmentResult,
+	operationResult *models.OperationResult,
+	operationKey string,
+) error {
+	context := NewEvaluationContext(span, traceData)
+
+	// Populate context with span data
+	engine.populateEvaluationContext(context, span)
+
+	// Validate status codes
+	if err := engine.validateStatusCodes(operation, span, result, operationResult, operationKey); err != nil {
+		return fmt.Errorf("failed to validate status codes: %w", err)
+	}
+
+	// Validate required fields
+	if err := engine.validateRequiredFields(operation, span, result, operationResult, operationKey); err != nil {
+		return fmt.Errorf("failed to validate required fields: %w", err)
+	}
+
+	return nil
+}
+
+// validateStatusCodes validates that the span's status code matches the operation's expected codes/ranges
+func (engine *DefaultAlignmentEngine) validateStatusCodes(
+	operation models.OperationSpec,
+	span *models.Span,
+	result *models.AlignmentResult,
+	operationResult *models.OperationResult,
+	operationKey string,
+) error {
+	// Get status code from span
+	var statusCode int
+	if code, ok := span.Attributes["http.status_code"].(int); ok {
+		statusCode = code
+	} else if code, ok := span.Attributes["http.status_code"].(float64); ok {
+		statusCode = int(code)
+	} else {
+		// No status code found, skip validation
+		return nil
+	}
+
+	// Determine validation strategy based on aggregation mode
+	aggregation := operation.Responses.Aggregation
+	if aggregation == "" {
+		aggregation = "auto" // Default to auto mode
+	}
+
+	matched := false
+	var matchDetails []string
+
+	// Check exact status codes first (if specified)
+	if len(operation.Responses.StatusCodes) > 0 {
+		for _, expectedCode := range operation.Responses.StatusCodes {
+			if statusCode == expectedCode {
+				matched = true
+				matchDetails = append(matchDetails, fmt.Sprintf("exact code %d", expectedCode))
+				break
+			}
+		}
+	}
+
+	// Check status ranges (if specified and not already matched, or if both are allowed)
+	if len(operation.Responses.StatusRanges) > 0 && (!matched || engine.allowBothCodesAndRanges(aggregation)) {
+		for _, expectedRange := range operation.Responses.StatusRanges {
+			if engine.statusCodeInRange(statusCode, expectedRange) {
+				matched = true
+				matchDetails = append(matchDetails, fmt.Sprintf("range %s", expectedRange))
+				if !engine.allowBothCodesAndRanges(aggregation) {
+					break // Only need one match unless both are explicitly allowed
+				}
+			}
+		}
+	}
+
+	// Create validation detail based on result
+	var detail *models.ValidationDetail
+	if matched {
+		detail = models.NewValidationDetail(
+			"status_code", 
+			engine.getValidationExpression(aggregation),
+			engine.getExpectedValue(operation.Responses),
+			statusCode,
+			fmt.Sprintf("Status code %d matches expected (%s)", statusCode, strings.Join(matchDetails, " and ")))
+		
+		operationResult.AssertionsPassed++
+	} else {
+		detail = models.NewValidationDetail(
+			"status_code",
+			engine.getValidationExpression(aggregation),
+			engine.getExpectedValue(operation.Responses),
+			statusCode,
+			fmt.Sprintf("Status code %d does not match any expected values", statusCode))
+		
+		operationResult.AssertionsFailed++
+	}
+
+	detail.Operation = operationKey
+	detail.SpanContext = span
+	
+	operationResult.Details = append(operationResult.Details, *detail)
+	operationResult.AssertionsTotal++
+	result.AddValidationDetail(*detail)
+
+	return nil
+}
+
+// allowBothCodesAndRanges determines if both exact codes and ranges should be checked
+func (engine *DefaultAlignmentEngine) allowBothCodesAndRanges(aggregation string) bool {
+	// In "auto" mode, if both are specified, both should be checked
+	// In "exact" mode, prefer exact codes
+	// In "range" mode, prefer ranges
+	return aggregation == "auto"
+}
+
+// getValidationExpression returns the appropriate validation expression based on aggregation mode
+func (engine *DefaultAlignmentEngine) getValidationExpression(aggregation string) string {
+	switch aggregation {
+	case "exact":
+		return "exact_match"
+	case "range":
+		return "range_match"
+	case "auto":
+		return "auto_match"
+	default:
+		return "status_match"
+	}
+}
+
+// getExpectedValue returns the expected value for validation detail
+func (engine *DefaultAlignmentEngine) getExpectedValue(responses models.ResponseSpec) interface{} {
+	expected := make(map[string]interface{})
+	
+	if len(responses.StatusCodes) > 0 {
+		expected["statusCodes"] = responses.StatusCodes
+	}
+	
+	if len(responses.StatusRanges) > 0 {
+		expected["statusRanges"] = responses.StatusRanges
+	}
+	
+	if responses.Aggregation != "" {
+		expected["aggregation"] = responses.Aggregation
+	}
+	
+	return expected
+}
+
+// statusCodeInRange checks if a status code falls within a given range (e.g., "2xx", "4xx")
+func (engine *DefaultAlignmentEngine) statusCodeInRange(statusCode int, rangeStr string) bool {
+	// Normalize range string to lowercase
+	rangeStr = strings.ToLower(strings.TrimSpace(rangeStr))
+	
+	switch rangeStr {
+	case "1xx":
+		return statusCode >= 100 && statusCode < 200
+	case "2xx":
+		return statusCode >= 200 && statusCode < 300
+	case "3xx":
+		return statusCode >= 300 && statusCode < 400
+	case "4xx":
+		return statusCode >= 400 && statusCode < 500
+	case "5xx":
+		return statusCode >= 500 && statusCode < 600
+	default:
+		// Try to parse custom ranges like "200-299" or "4xx-5xx"
+		return engine.parseCustomRange(statusCode, rangeStr)
+	}
+}
+
+// parseCustomRange handles custom range formats
+func (engine *DefaultAlignmentEngine) parseCustomRange(statusCode int, rangeStr string) bool {
+	// Handle ranges like "200-299", "400-499", etc.
+	if strings.Contains(rangeStr, "-") {
+		parts := strings.Split(rangeStr, "-")
+		if len(parts) == 2 {
+			// Try to parse as numeric range
+			if start, err := fmt.Sscanf(parts[0], "%d", new(int)); err == nil && start == 1 {
+				if end, err := fmt.Sscanf(parts[1], "%d", new(int)); err == nil && end == 1 {
+					var startCode, endCode int
+					fmt.Sscanf(parts[0], "%d", &startCode)
+					fmt.Sscanf(parts[1], "%d", &endCode)
+					return statusCode >= startCode && statusCode <= endCode
+				}
+			}
+		}
+	}
+	
+	return false
+}
+
+// validateRequiredFields validates that required query parameters and headers are present
+func (engine *DefaultAlignmentEngine) validateRequiredFields(
+	operation models.OperationSpec,
+	span *models.Span,
+	result *models.AlignmentResult,
+	operationResult *models.OperationResult,
+	operationKey string,
+) error {
+	// Validate required headers
+	for _, requiredHeader := range operation.Required.Headers {
+		headerFound := false
+		
+		// Check span attributes for headers (they might be prefixed with "http.request.header.")
+		for attrKey := range span.Attributes {
+			if strings.HasPrefix(strings.ToLower(attrKey), "http.request.header.") {
+				headerName := strings.TrimPrefix(strings.ToLower(attrKey), "http.request.header.")
+				if strings.ToLower(headerName) == strings.ToLower(requiredHeader) {
+					headerFound = true
+					break
+				}
+			}
+		}
+
+		detail := models.NewValidationDetail(
+			"required_header", "presence", "present", map[bool]string{true: "present", false: "missing"}[headerFound],
+			fmt.Sprintf("Required header '%s' is %s", requiredHeader, map[bool]string{true: "present", false: "missing"}[headerFound]))
+		detail.Operation = operationKey
+		detail.SpanContext = span
+		
+		operationResult.Details = append(operationResult.Details, *detail)
+		operationResult.AssertionsTotal++
+		if headerFound {
+			operationResult.AssertionsPassed++
+		} else {
+			operationResult.AssertionsFailed++
+		}
+		result.AddValidationDetail(*detail)
+	}
+
+	// Validate required query parameters
+	for _, requiredQuery := range operation.Required.Query {
+		queryFound := false
+		
+		// Check span attributes for query parameters
+		if queryString, ok := span.Attributes["http.url"].(string); ok {
+			// Parse query string from URL
+			if strings.Contains(queryString, "?") {
+				queryPart := strings.Split(queryString, "?")[1]
+				if strings.Contains(queryPart, requiredQuery+"=") {
+					queryFound = true
+				}
+			}
+		}
+
+		// Also check for direct query parameter attributes
+		for attrKey := range span.Attributes {
+			if strings.HasPrefix(strings.ToLower(attrKey), "http.request.query.") {
+				queryName := strings.TrimPrefix(strings.ToLower(attrKey), "http.request.query.")
+				if strings.ToLower(queryName) == strings.ToLower(requiredQuery) {
+					queryFound = true
+					break
+				}
+			}
+		}
+
+		detail := models.NewValidationDetail(
+			"required_query", "presence", "present", map[bool]string{true: "present", false: "missing"}[queryFound],
+			fmt.Sprintf("Required query parameter '%s' is %s", requiredQuery, map[bool]string{true: "present", false: "missing"}[queryFound]))
+		detail.Operation = operationKey
+		detail.SpanContext = span
+		
+		operationResult.Details = append(operationResult.Details, *detail)
+		operationResult.AssertionsTotal++
+		if queryFound {
+			operationResult.AssertionsPassed++
+		} else {
+			operationResult.AssertionsFailed++
+		}
+		result.AddValidationDetail(*detail)
+	}
+
+	return nil
 }
 
 // evaluateSpecForSpan evaluates a spec against a specific span
@@ -948,6 +1451,41 @@ func (sm *SpecMatcher) FindMatchingSpans(spec models.ServiceSpec, traceData *mod
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
+	// For YAML format, use specialized matching logic
+	if spec.IsYAMLFormat() {
+		return sm.findMatchingSpansForYAMLSpec(spec, traceData)
+	}
+
+	// For legacy format, use existing strategy-based approach
+	return sm.findMatchingSpansForLegacySpec(spec, traceData)
+}
+
+// findMatchingSpansForYAMLSpec finds spans for YAML format specs
+func (sm *SpecMatcher) findMatchingSpansForYAMLSpec(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
+	var allMatchingSpans []*models.Span
+	spanSet := make(map[string]*models.Span) // Use map to avoid duplicates
+
+	// Match spans for each endpoint and operation
+	for _, endpoint := range spec.Spec.Endpoints {
+		for _, operation := range endpoint.Operations {
+			for _, span := range traceData.Spans {
+				if sm.spanMatchesEndpointOperation(span, endpoint, operation) {
+					spanSet[span.SpanID] = span
+				}
+			}
+		}
+	}
+
+	// Convert map to slice
+	for _, span := range spanSet {
+		allMatchingSpans = append(allMatchingSpans, span)
+	}
+
+	return allMatchingSpans, nil
+}
+
+// findMatchingSpansForLegacySpec finds spans for legacy format specs
+func (sm *SpecMatcher) findMatchingSpansForLegacySpec(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
 	// Try each strategy in order of priority
 	for _, strategy := range sm.matchStrategies {
 		spans, err := strategy.Match(spec, traceData)
@@ -964,12 +1502,86 @@ func (sm *SpecMatcher) FindMatchingSpans(spec models.ServiceSpec, traceData *mod
 	return []*models.Span{}, nil
 }
 
+// spanMatchesEndpointOperation checks if a span matches a specific endpoint operation
+func (sm *SpecMatcher) spanMatchesEndpointOperation(
+	span *models.Span,
+	endpoint models.EndpointSpec,
+	operation models.OperationSpec,
+) bool {
+	// Check HTTP method
+	if method, ok := span.Attributes["http.method"].(string); ok {
+		if method != operation.Method {
+			return false
+		}
+	}
+
+	// Check path pattern matching
+	if path, ok := span.Attributes["http.target"].(string); ok {
+		if sm.pathMatches(path, endpoint.Path) {
+			return true
+		}
+	}
+
+	// Also check http.route attribute
+	if route, ok := span.Attributes["http.route"].(string); ok {
+		if sm.pathMatches(route, endpoint.Path) {
+			return true
+		}
+	}
+
+	// Check span name for operation matching
+	operationName := fmt.Sprintf("%s %s", operation.Method, endpoint.Path)
+	if span.Name == operationName {
+		return true
+	}
+
+	return false
+}
+
+// pathMatches performs pattern matching for parameterized paths
+func (sm *SpecMatcher) pathMatches(requestPath, pattern string) bool {
+	// Split paths into segments
+	requestSegments := strings.Split(strings.Trim(requestPath, "/"), "/")
+	patternSegments := strings.Split(strings.Trim(pattern, "/"), "/")
+
+	// Must have same number of segments
+	if len(requestSegments) != len(patternSegments) {
+		return false
+	}
+
+	// Check each segment
+	for i, patternSegment := range patternSegments {
+		if i >= len(requestSegments) {
+			return false
+		}
+
+		requestSegment := requestSegments[i]
+
+		// If pattern segment is a parameter (starts with {), it matches any value
+		if strings.HasPrefix(patternSegment, "{") && strings.HasSuffix(patternSegment, "}") {
+			continue
+		}
+
+		// Otherwise, must be exact match
+		if requestSegment != patternSegment {
+			return false
+		}
+	}
+
+	return true
+}
+
 // MatchStrategy implementations
 
 // OperationIDMatcher methods
 
 // Match implements the MatchStrategy interface
 func (matcher *OperationIDMatcher) Match(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
+	// Only handle legacy format specs
+	if spec.IsYAMLFormat() {
+		return []*models.Span{}, nil
+	}
+
 	var matchingSpans []*models.Span
 
 	for _, span := range traceData.Spans {
@@ -997,6 +1609,12 @@ func (matcher *OperationIDMatcher) GetPriority() int {
 
 // Match implements the MatchStrategy interface
 func (matcher *SpanNameMatcher) Match(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
+	// Handle both YAML and legacy formats
+	if spec.IsYAMLFormat() {
+		return matcher.matchYAMLFormat(spec, traceData)
+	}
+
+	// Legacy format matching
 	var matchingSpans []*models.Span
 
 	// Try to match by span name (use operation ID as span name)
@@ -1004,6 +1622,32 @@ func (matcher *SpanNameMatcher) Match(spec models.ServiceSpec, traceData *models
 		if span.Name == spec.OperationID {
 			matchingSpans = append(matchingSpans, span)
 		}
+	}
+
+	return matchingSpans, nil
+}
+
+// matchYAMLFormat matches spans for YAML format specs by span name
+func (matcher *SpanNameMatcher) matchYAMLFormat(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
+	var matchingSpans []*models.Span
+	spanSet := make(map[string]*models.Span)
+
+	// Match spans for each endpoint and operation
+	for _, endpoint := range spec.Spec.Endpoints {
+		for _, operation := range endpoint.Operations {
+			operationName := fmt.Sprintf("%s %s", operation.Method, endpoint.Path)
+			
+			for _, span := range traceData.Spans {
+				if span.Name == operationName {
+					spanSet[span.SpanID] = span
+				}
+			}
+		}
+	}
+
+	// Convert map to slice
+	for _, span := range spanSet {
+		matchingSpans = append(matchingSpans, span)
 	}
 
 	return matchingSpans, nil
@@ -1023,6 +1667,12 @@ func (matcher *SpanNameMatcher) GetPriority() int {
 
 // Match implements the MatchStrategy interface
 func (matcher *AttributeMatcher) Match(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
+	// Handle both YAML and legacy formats
+	if spec.IsYAMLFormat() {
+		return matcher.matchYAMLFormat(spec, traceData)
+	}
+
+	// Legacy format matching
 	var matchingSpans []*models.Span
 
 	for _, span := range traceData.Spans {
@@ -1031,6 +1681,34 @@ func (matcher *AttributeMatcher) Match(spec models.ServiceSpec, traceData *model
 				matchingSpans = append(matchingSpans, span)
 			}
 		}
+	}
+
+	return matchingSpans, nil
+}
+
+// matchYAMLFormat matches spans for YAML format specs by attributes
+func (matcher *AttributeMatcher) matchYAMLFormat(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
+	var matchingSpans []*models.Span
+	spanSet := make(map[string]*models.Span)
+
+	// Match spans for each endpoint and operation
+	for _, endpoint := range spec.Spec.Endpoints {
+		for _, operation := range endpoint.Operations {
+			operationName := fmt.Sprintf("%s %s", operation.Method, endpoint.Path)
+			
+			for _, span := range traceData.Spans {
+				if value, ok := span.Attributes[matcher.attributeKey].(string); ok {
+					if value == operationName {
+						spanSet[span.SpanID] = span
+					}
+				}
+			}
+		}
+	}
+
+	// Convert map to slice
+	for _, span := range spanSet {
+		matchingSpans = append(matchingSpans, span)
 	}
 
 	return matchingSpans, nil
@@ -1161,6 +1839,197 @@ func (engine *DefaultAlignmentEngine) getMemoryUsageMB() float64 {
 	runtime.ReadMemStats(&m)
 	// Return allocated memory in MB
 	return float64(m.Alloc) / 1024 / 1024
+}
+
+// EndpointMatcher methods
+
+// Match implements the MatchStrategy interface for YAML format specs
+func (matcher *EndpointMatcher) Match(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
+	// Only handle YAML format specs
+	if !spec.IsYAMLFormat() {
+		return []*models.Span{}, nil
+	}
+
+	var matchingSpans []*models.Span
+
+	// Match spans for each endpoint and operation
+	for _, endpoint := range spec.Spec.Endpoints {
+		for _, operation := range endpoint.Operations {
+			for _, span := range traceData.Spans {
+				if matcher.spanMatchesEndpointOperation(span, endpoint, operation) {
+					matchingSpans = append(matchingSpans, span)
+				}
+			}
+		}
+	}
+
+	return matchingSpans, nil
+}
+
+// spanMatchesEndpointOperation checks if a span matches a specific endpoint operation
+func (matcher *EndpointMatcher) spanMatchesEndpointOperation(
+	span *models.Span,
+	endpoint models.EndpointSpec,
+	operation models.OperationSpec,
+) bool {
+	// Check HTTP method
+	if method, ok := span.Attributes["http.method"].(string); ok {
+		if method != operation.Method {
+			return false
+		}
+	}
+
+	// Check path pattern matching
+	if path, ok := span.Attributes["http.target"].(string); ok {
+		if matcher.pathMatches(path, endpoint.Path) {
+			return true
+		}
+	}
+
+	// Also check http.route attribute
+	if route, ok := span.Attributes["http.route"].(string); ok {
+		if matcher.pathMatches(route, endpoint.Path) {
+			return true
+		}
+	}
+
+	// Check span name for operation matching
+	operationName := fmt.Sprintf("%s %s", operation.Method, endpoint.Path)
+	if span.Name == operationName {
+		return true
+	}
+
+	return false
+}
+
+// pathMatches performs pattern matching for parameterized paths
+func (matcher *EndpointMatcher) pathMatches(requestPath, pattern string) bool {
+	// Split paths into segments
+	requestSegments := strings.Split(strings.Trim(requestPath, "/"), "/")
+	patternSegments := strings.Split(strings.Trim(pattern, "/"), "/")
+
+	// Must have same number of segments
+	if len(requestSegments) != len(patternSegments) {
+		return false
+	}
+
+	// Check each segment
+	for i, patternSegment := range patternSegments {
+		if i >= len(requestSegments) {
+			return false
+		}
+
+		requestSegment := requestSegments[i]
+
+		// If pattern segment is a parameter (starts with {), it matches any value
+		if strings.HasPrefix(patternSegment, "{") && strings.HasSuffix(patternSegment, "}") {
+			continue
+		}
+
+		// Otherwise, must be exact match
+		if requestSegment != patternSegment {
+			return false
+		}
+	}
+
+	return true
+}
+
+// GetName implements the MatchStrategy interface
+func (matcher *EndpointMatcher) GetName() string {
+	return "endpoint_matcher"
+}
+
+// GetPriority implements the MatchStrategy interface
+func (matcher *EndpointMatcher) GetPriority() int {
+	return 100 // Highest priority for YAML format
+}
+
+// OperationMatcher methods
+
+// Match implements the MatchStrategy interface for individual operations
+func (matcher *OperationMatcher) Match(spec models.ServiceSpec, traceData *models.TraceData) ([]*models.Span, error) {
+	// This matcher is used internally by the engine for operation-level matching
+	// It's not used directly in the FindMatchingSpans method
+	return []*models.Span{}, nil
+}
+
+// GetName implements the MatchStrategy interface
+func (matcher *OperationMatcher) GetName() string {
+	return "operation_matcher"
+}
+
+// GetPriority implements the MatchStrategy interface
+func (matcher *OperationMatcher) GetPriority() int {
+	return 90 // High priority for operation-level matching
+}
+
+// determineAggregationStrategy determines the best aggregation strategy based on the response spec
+func (engine *DefaultAlignmentEngine) determineAggregationStrategy(responses models.ResponseSpec) string {
+	aggregation := responses.Aggregation
+	if aggregation != "" && aggregation != "auto" {
+		return aggregation // Use explicitly specified strategy
+	}
+
+	// Auto-determine strategy based on what's specified
+	hasExactCodes := len(responses.StatusCodes) > 0
+	hasRanges := len(responses.StatusRanges) > 0
+
+	if hasExactCodes && hasRanges {
+		// Both specified - use auto mode to check both
+		return "auto"
+	} else if hasExactCodes {
+		// Only exact codes specified
+		return "exact"
+	} else if hasRanges {
+		// Only ranges specified
+		return "range"
+	}
+
+	// Default to auto if nothing is specified
+	return "auto"
+}
+
+// shouldUseRangeAggregation determines if range aggregation should be used for the given status codes
+func (engine *DefaultAlignmentEngine) shouldUseRangeAggregation(statusCodes []int) bool {
+	if len(statusCodes) < 2 {
+		return false
+	}
+
+	// Group status codes by their class (1xx, 2xx, etc.)
+	classes := make(map[int][]int)
+	for _, code := range statusCodes {
+		class := code / 100
+		classes[class] = append(classes[class], code)
+	}
+
+	// If codes span multiple classes, range aggregation might be beneficial
+	if len(classes) > 1 {
+		return true
+	}
+
+	// If there are many codes in the same class, range aggregation might be beneficial
+	for _, codes := range classes {
+		if len(codes) > 3 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// updateOperationStatus updates the operation status based on validation results
+func (engine *DefaultAlignmentEngine) updateOperationStatus(operationResult *models.OperationResult) {
+	if operationResult.AssertionsTotal == 0 {
+		operationResult.Status = models.StatusSkipped
+		return
+	}
+
+	if operationResult.AssertionsFailed > 0 {
+		operationResult.Status = models.StatusFailed
+	} else {
+		operationResult.Status = models.StatusSuccess
+	}
 }
 
 // ValidateEngineConfig validates the engine configuration

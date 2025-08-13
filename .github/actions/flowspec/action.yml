@@ -1,0 +1,326 @@
+name: 'FlowSpec Verification'
+description: 'Verify service specifications against trace data using FlowSpec CLI'
+author: 'FlowSpec Team'
+
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  path:
+    description: 'Path to source code directory or YAML contract file'
+    required: true
+  trace:
+    description: 'Path to trace file (OpenTelemetry, HAR, or flowspec-trace.json format)'
+    required: true
+  version:
+    description: 'FlowSpec CLI version to use (e.g., "v1.0.0" or "latest")'
+    required: false
+    default: 'latest'
+  ci:
+    description: 'Enable CI mode for simplified output'
+    required: false
+    default: 'true'
+  status-aggregation:
+    description: 'Status code aggregation strategy (range|exact|auto)'
+    required: false
+    default: 'auto'
+  required-threshold:
+    description: 'Required field threshold (0.0-1.0)'
+    required: false
+    default: '0.95'
+  min-samples:
+    description: 'Minimum samples required for endpoint inclusion'
+    required: false
+    default: '5'
+  output-format:
+    description: 'Output format (human|json)'
+    required: false
+    default: 'human'
+  lang:
+    description: 'Language for output (en|zh|ja|ko|fr|de|es)'
+    required: false
+    default: 'en'
+
+outputs:
+  result:
+    description: 'Verification result (success|failure)'
+  exit-code:
+    description: 'Exit code from FlowSpec CLI'
+  summary-json:
+    description: 'Path to generated summary JSON file'
+  junit-xml:
+    description: 'Path to generated JUnit XML file'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          Linux)
+            echo "os=linux" >> $GITHUB_OUTPUT
+            echo "arch=amd64" >> $GITHUB_OUTPUT
+            echo "ext=tar.gz" >> $GITHUB_OUTPUT
+            ;;
+          macOS)
+            echo "os=darwin" >> $GITHUB_OUTPUT
+            echo "arch=amd64" >> $GITHUB_OUTPUT
+            echo "ext=tar.gz" >> $GITHUB_OUTPUT
+            ;;
+          Windows)
+            echo "os=windows" >> $GITHUB_OUTPUT
+            echo "arch=amd64" >> $GITHUB_OUTPUT
+            echo "ext=zip" >> $GITHUB_OUTPUT
+            ;;
+          *)
+            echo "::error::Unsupported platform: ${{ runner.os }}"
+            exit 1
+            ;;
+        esac
+
+    - name: Download FlowSpec CLI
+      id: download
+      shell: bash
+      run: |
+        set -euo pipefail
+        
+        VERSION="${{ inputs.version }}"
+        OS="${{ steps.platform.outputs.os }}"
+        ARCH="${{ steps.platform.outputs.arch }}"
+        EXT="${{ steps.platform.outputs.ext }}"
+        
+        # Resolve version
+        if [ "$VERSION" = "latest" ]; then
+          echo "::group::Resolving latest version"
+          VERSION=$(curl -s https://api.github.com/repos/FlowSpec/flowspec-cli/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "Latest version: $VERSION"
+          echo "::endgroup::"
+        fi
+        
+        # Construct download URL
+        FILENAME="flowspec-cli-${OS}-${ARCH}.${EXT}"
+        DOWNLOAD_URL="https://github.com/FlowSpec/flowspec-cli/releases/download/${VERSION}/${FILENAME}"
+        CHECKSUM_URL="https://github.com/FlowSpec/flowspec-cli/releases/download/${VERSION}/checksums.txt"
+        
+        echo "::group::Downloading FlowSpec CLI"
+        echo "Version: $VERSION"
+        echo "Platform: ${OS}-${ARCH}"
+        echo "Download URL: $DOWNLOAD_URL"
+        
+        # Create temp directory
+        TEMP_DIR=$(mktemp -d)
+        cd "$TEMP_DIR"
+        
+        # Download binary and checksum
+        echo "Downloading binary..."
+        curl -fsSL -o "$FILENAME" "$DOWNLOAD_URL"
+        
+        echo "Downloading checksums..."
+        curl -fsSL -o "checksums.txt" "$CHECKSUM_URL"
+        
+        # Verify checksum
+        echo "Verifying checksum..."
+        if command -v sha256sum >/dev/null 2>&1; then
+          grep "$FILENAME" checksums.txt | sha256sum -c -
+        elif command -v shasum >/dev/null 2>&1; then
+          grep "$FILENAME" checksums.txt | shasum -a 256 -c -
+        else
+          echo "::warning::No checksum verification tool available, skipping verification"
+        fi
+        
+        # Extract binary
+        echo "Extracting binary..."
+        if [ "$EXT" = "zip" ]; then
+          unzip -q "$FILENAME"
+        else
+          tar -xzf "$FILENAME"
+        fi
+        
+        # Make executable and move to PATH
+        chmod +x flowspec-cli*
+        
+        # Find the binary (handle different extraction patterns)
+        BINARY_PATH=""
+        if [ -f "flowspec-cli" ]; then
+          BINARY_PATH="flowspec-cli"
+        elif [ -f "flowspec-cli.exe" ]; then
+          BINARY_PATH="flowspec-cli.exe"
+        else
+          # Look for binary in subdirectories
+          BINARY_PATH=$(find . -name "flowspec-cli*" -type f -executable | head -1)
+        fi
+        
+        if [ -z "$BINARY_PATH" ]; then
+          echo "::error::Could not find flowspec-cli binary after extraction"
+          exit 1
+        fi
+        
+        # Move to a location in PATH
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          INSTALL_DIR="/c/flowspec-cli"
+          mkdir -p "$INSTALL_DIR"
+          cp "$BINARY_PATH" "$INSTALL_DIR/"
+          echo "$INSTALL_DIR" >> $GITHUB_PATH
+        else
+          sudo cp "$BINARY_PATH" /usr/local/bin/
+        fi
+        
+        # Cleanup
+        cd /
+        rm -rf "$TEMP_DIR"
+        
+        echo "::endgroup::"
+        
+        # Verify installation
+        echo "::group::Verifying installation"
+        flowspec-cli --version
+        echo "::endgroup::"
+        
+        # Output version for later use
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Create artifacts directory
+      shell: bash
+      run: |
+        mkdir -p artifacts
+
+    - name: Run FlowSpec verification
+      id: verify
+      shell: bash
+      run: |
+        set +e  # Don't exit on failure, we want to capture the exit code
+        
+        # Prepare command arguments
+        ARGS=(
+          "verify"
+          "--path=${{ inputs.path }}"
+          "--trace=${{ inputs.trace }}"
+          "--output=${{ inputs.output-format }}"
+          "--lang=${{ inputs.lang }}"
+        )
+        
+        # Add CI mode if enabled
+        if [ "${{ inputs.ci }}" = "true" ]; then
+          ARGS+=("--ci")
+        fi
+        
+        # Add optional parameters if provided
+        if [ -n "${{ inputs.status-aggregation }}" ] && [ "${{ inputs.status-aggregation }}" != "auto" ]; then
+          ARGS+=("--status-aggregation=${{ inputs.status-aggregation }}")
+        fi
+        
+        if [ -n "${{ inputs.required-threshold }}" ] && [ "${{ inputs.required-threshold }}" != "0.95" ]; then
+          ARGS+=("--required-threshold=${{ inputs.required-threshold }}")
+        fi
+        
+        if [ -n "${{ inputs.min-samples }}" ] && [ "${{ inputs.min-samples }}" != "5" ]; then
+          ARGS+=("--min-samples=${{ inputs.min-samples }}")
+        fi
+        
+        echo "::group::Running FlowSpec verification"
+        echo "Command: flowspec-cli ${ARGS[*]}"
+        
+        # Run the command and capture output and exit code
+        flowspec-cli "${ARGS[@]}" 2>&1 | tee verification.log
+        EXIT_CODE=$?
+        
+        echo "::endgroup::"
+        
+        # Set outputs
+        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        
+        if [ $EXIT_CODE -eq 0 ]; then
+          echo "result=success" >> $GITHUB_OUTPUT
+          echo "::notice::FlowSpec verification completed successfully"
+        else
+          echo "result=failure" >> $GITHUB_OUTPUT
+          case $EXIT_CODE in
+            1)
+              echo "::error::Validation failed - specifications do not match traces"
+              ;;
+            2)
+              echo "::error::Contract format error - invalid YAML or specification format"
+              ;;
+            3)
+              echo "::error::Parse error - unable to parse trace or log files"
+              ;;
+            4)
+              echo "::error::System error - runtime or environment issue"
+              ;;
+            64)
+              echo "::error::Usage error - invalid command line arguments"
+              ;;
+            *)
+              echo "::error::Unknown error (exit code: $EXIT_CODE)"
+              ;;
+          esac
+        fi
+        
+        # Move artifacts if they exist
+        if [ -f "artifacts/flowspec-summary.json" ]; then
+          echo "summary-json=artifacts/flowspec-summary.json" >> $GITHUB_OUTPUT
+        fi
+        
+        if [ -f "artifacts/flowspec-report.xml" ]; then
+          echo "junit-xml=artifacts/flowspec-report.xml" >> $GITHUB_OUTPUT
+        fi
+        
+        # Copy verification log to artifacts
+        cp verification.log artifacts/ 2>/dev/null || true
+        
+        # Exit with the original exit code
+        exit $EXIT_CODE
+
+    - name: Collect artifacts
+      if: always()
+      shell: bash
+      run: |
+        # Use the enhanced artifact collection script
+        ./.github/actions/flowspec/collect-artifacts.sh artifacts ${{ steps.verify.outputs.exit-code }} verification.log
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: flowspec-reports-${{ github.run_id }}-${{ runner.os }}-${{ runner.arch }}
+        path: artifacts/
+        retention-days: 30
+        if-no-files-found: warn
+        compression-level: 6
+
+    - name: Display summary
+      if: always()
+      shell: bash
+      run: |
+        echo "## FlowSpec Verification Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ steps.download.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Platform**: ${{ runner.os }}-${{ steps.platform.outputs.arch }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Result**: ${{ steps.verify.outputs.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Exit Code**: ${{ steps.verify.outputs.exit-code }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "artifacts/flowspec-summary.json" ]; then
+          echo "### Verification Details" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat artifacts/flowspec-summary.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The following artifacts have been uploaded:" >> $GITHUB_STEP_SUMMARY
+        echo "- Verification logs" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "artifacts/flowspec-summary.json" ]; then
+          echo "- Summary JSON report" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "artifacts/flowspec-report.xml" ]; then
+          echo "- JUnit XML report" >> $GITHUB_STEP_SUMMARY
+        fi
