@@ -16,24 +16,20 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Check if flowspec-cli is available
-if ! command -v flowspec-cli &> /dev/null; then
-    echo -e "${RED}❌ flowspec-cli not found. Please install it first.${NC}"
-    echo "Installation options:"
-    echo "  npm install -g @flowspec/cli"
-    echo "  go install github.com/FlowSpec/flowspec-cli/cmd/flowspec-cli@latest"
+FLOWSPEC_CLI="../../build/flowspec-cli"
+if [ ! -f "$FLOWSPEC_CLI" ]; then
+    echo -e "${RED}❌ flowspec-cli not found at $FLOWSPEC_CLI${NC}"
+    echo "Please build the project first:"
+    echo "  make build"
     exit 1
 fi
 
 echo -e "${BLUE}📋 FlowSpec CLI version:${NC}"
-flowspec-cli --version
+$FLOWSPEC_CLI --version
 echo
 
 # Contract and trace pairs
-declare -A contracts=(
-    ["user-service.yaml"]="test-traces/user-service-trace.json"
-    ["order-service.yaml"]="test-traces/order-service-trace.json"
-    ["minimal-service.yaml"]="test-traces/user-service-trace.json"  # Use user trace for minimal example
-)
+contracts="user-service.yaml:test-traces/user-service-trace.json minimal-service.yaml:test-traces/user-service-trace.json"
 
 # Counters
 total_contracts=0
@@ -44,8 +40,9 @@ echo -e "${YELLOW}🚀 Starting contract verification...${NC}"
 echo
 
 # Verify each contract
-for contract in "${!contracts[@]}"; do
-    trace="${contracts[$contract]}"
+for pair in $contracts; do
+    contract=$(echo "$pair" | cut -d: -f1)
+    trace=$(echo "$pair" | cut -d: -f2)
     total_contracts=$((total_contracts + 1))
     
     echo -e "${BLUE}📄 Verifying: $contract${NC}"
@@ -66,7 +63,7 @@ for contract in "${!contracts[@]}"; do
     fi
     
     # Run verification in CI mode for concise output
-    if flowspec-cli verify --path "$contract" --trace "$trace" --ci 2>/dev/null; then
+    if $FLOWSPEC_CLI verify --path "$contract" --trace "$trace" --ci 2>/dev/null; then
         echo -e "${GREEN}   ✅ Verification passed${NC}"
         passed_contracts=$((passed_contracts + 1))
     else
@@ -75,7 +72,7 @@ for contract in "${!contracts[@]}"; do
         
         # Show detailed output for failed contracts
         echo -e "${YELLOW}   📋 Detailed failure report:${NC}"
-        flowspec-cli verify --path "$contract" --trace "$trace" --output human 2>/dev/null || true
+        $FLOWSPEC_CLI verify --path "$contract" --trace "$trace" --output human 2>/dev/null || true
     fi
     echo
 done
@@ -84,7 +81,7 @@ done
 echo -e "${BLUE}📄 Verifying legacy format: legacy-format.yaml${NC}"
 echo "   Note: This uses the deprecated format but should still work"
 
-if flowspec-cli verify --path legacy-format.yaml --trace test-traces/user-service-trace.json --ci 2>/dev/null; then
+if $FLOWSPEC_CLI verify --path legacy-format.yaml --trace test-traces/user-service-trace.json --ci 2>/dev/null; then
     echo -e "${GREEN}   ✅ Legacy format verification passed${NC}"
     passed_contracts=$((passed_contracts + 1))
 else
@@ -117,24 +114,24 @@ echo "=========================="
 echo
 
 echo -e "${BLUE}Example 1: JSON output${NC}"
-echo "flowspec-cli verify --path user-service.yaml --trace test-traces/user-service-trace.json --output json"
+echo "$FLOWSPEC_CLI verify --path user-service.yaml --trace test-traces/user-service-trace.json --output json"
 echo
 
 echo -e "${BLUE}Example 2: Debug mode${NC}"
-echo "flowspec-cli verify --path user-service.yaml --trace test-traces/user-service-trace.json --debug"
+echo "$FLOWSPEC_CLI verify --path user-service.yaml --trace test-traces/user-service-trace.json --debug"
 echo
 
 echo -e "${BLUE}Example 3: Strict mode${NC}"
-echo "flowspec-cli verify --path user-service.yaml --trace test-traces/user-service-trace.json --strict"
+echo "$FLOWSPEC_CLI verify --path user-service.yaml --trace test-traces/user-service-trace.json --strict"
 echo
 
 echo -e "${BLUE}Example 4: Custom timeout${NC}"
-echo "flowspec-cli verify --path user-service.yaml --trace test-traces/user-service-trace.json --timeout 60s"
+echo "$FLOWSPEC_CLI verify --path user-service.yaml --trace test-traces/user-service-trace.json --timeout 60s"
 echo
 
 # Generate sample JSON report
 echo -e "${YELLOW}📊 Generating sample JSON report...${NC}"
-if flowspec-cli verify --path user-service.yaml --trace test-traces/user-service-trace.json --output json > sample-report.json 2>/dev/null; then
+if $FLOWSPEC_CLI verify --path user-service.yaml --trace test-traces/user-service-trace.json --output json > sample-report.json 2>/dev/null; then
     echo -e "${GREEN}✅ JSON report generated: sample-report.json${NC}"
     
     if command -v jq &> /dev/null; then

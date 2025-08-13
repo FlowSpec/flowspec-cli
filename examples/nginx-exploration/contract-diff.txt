@@ -1,0 +1,143 @@
+--- expected-contract.yaml	2025-08-13 11:10:07
++++ generated-contract.yaml	2025-08-13 12:30:56
+@@ -1,125 +1,19 @@
++# FlowSpec Service Contract
++# Generated automatically from traffic analysis
++# 
++# This contract defines the discovered API endpoints and their expected behavior
++# based on observed traffic patterns.
++#
+ apiVersion: flowspec/v1alpha1
+ kind: ServiceSpec
+ metadata:
+-  name: generated-service
++  name: nginx-example
+   version: v1.0.0
+ spec:
+-  endpoints:
+-    - path: /api/users/{var}
+-      operations:
+-        - method: GET
+-          responses:
+-            statusRanges: ["2xx", "4xx"]
+-            aggregation: "range"
+-          optional:
+-            query: ["include"]
+-          stats:
+-            supportCount: 5
+-            firstSeen: "2025-08-01T10:30:15Z"
+-            lastSeen: "2025-08-01T10:30:31Z"
+-        - method: PUT
+-          responses:
+-            statusCodes: [200]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 1
+-            firstSeen: "2025-08-01T10:30:18Z"
+-            lastSeen: "2025-08-01T10:30:18Z"
+-        - method: DELETE
+-          responses:
+-            statusCodes: [204]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 1
+-            firstSeen: "2025-08-01T10:30:21Z"
+-            lastSeen: "2025-08-01T10:30:21Z"
+-    - path: /api/users
+-      operations:
+-        - method: POST
+-          responses:
+-            statusCodes: [201]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 1
+-            firstSeen: "2025-08-01T10:30:17Z"
+-            lastSeen: "2025-08-01T10:30:17Z"
+-    - path: /api/orders/{var}
+-      operations:
+-        - method: GET
+-          responses:
+-            statusRanges: ["2xx", "4xx"]
+-            aggregation: "range"
+-          stats:
+-            supportCount: 4
+-            firstSeen: "2025-08-01T10:30:22Z"
+-            lastSeen: "2025-08-01T10:30:26Z"
+-        - method: PUT
+-          responses:
+-            statusCodes: [200]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 1
+-            firstSeen: "2025-08-01T10:30:25Z"
+-            lastSeen: "2025-08-01T10:30:25Z"
+-    - path: /api/orders
+-      operations:
+-        - method: POST
+-          responses:
+-            statusCodes: [201]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 1
+-            firstSeen: "2025-08-01T10:30:23Z"
+-            lastSeen: "2025-08-01T10:30:23Z"
+-        - method: GET
+-          responses:
+-            statusCodes: [200]
+-            aggregation: "exact"
+-          required:
+-            query: ["status"]
+-          optional:
+-            query: ["limit"]
+-          stats:
+-            supportCount: 2
+-            firstSeen: "2025-08-01T10:30:32Z"
+-            lastSeen: "2025-08-01T10:30:33Z"
+-    - path: /health
+-      operations:
+-        - method: GET
+-          responses:
+-            statusCodes: [200]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 2
+-            firstSeen: "2025-08-01T10:30:27Z"
+-            lastSeen: "2025-08-01T10:30:28Z"
+-    - path: /metrics
+-      operations:
+-        - method: GET
+-          responses:
+-            statusCodes: [200]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 1
+-            firstSeen: "2025-08-01T10:30:29Z"
+-            lastSeen: "2025-08-01T10:30:29Z"
+-    - path: /api/auth/login
+-      operations:
+-        - method: POST
+-          responses:
+-            statusCodes: [200]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 1
+-            firstSeen: "2025-08-01T10:30:34Z"
+-            lastSeen: "2025-08-01T10:30:34Z"
+-    - path: /api/auth/logout
+-      operations:
+-        - method: POST
+-          responses:
+-            statusCodes: [204]
+-            aggregation: "exact"
+-          stats:
+-            supportCount: 1
+-            firstSeen: "2025-08-01T10:30:35Z"
+-            lastSeen: "2025-08-01T10:30:35Z"
+\ No newline at end of file
++  endpoints: []
++operationid: ""
++description: ""
++preconditions: {}
++postconditions: {}
++sourcefile: ""
++linenumber: 0

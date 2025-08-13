@@ -1,92 +1,121 @@
 {
-  "traceID": "user-service-trace-001",
-  "spans": [
-    {
-      "traceID": "user-service-trace-001",
-      "spanID": "span001",
-      "operationName": "GET /api/users/123",
-      "startTime": 1722508215000000,
-      "duration": 45000,
-      "tags": [
-        {"key": "http.method", "value": "GET"},
-        {"key": "http.url", "value": "/api/users/123"},
-        {"key": "http.status_code", "value": 200},
-        {"key": "http.request.header.authorization", "value": "Bearer token123"},
-        {"key": "http.request.header.accept-language", "value": "en-US"}
-      ],
-      "process": {
-        "serviceName": "user-service",
-        "tags": []
-      }
+  "resourceSpans": [{
+    "resource": {
+      "attributes": [
+        {"key": "service.name", "value": {"stringValue": "user-service"}},
+        {"key": "service.version", "value": {"stringValue": "2.1.0"}}
+      ]
     },
-    {
-      "traceID": "user-service-trace-001",
-      "spanID": "span002",
-      "operationName": "POST /api/users",
-      "startTime": 1722508220000000,
-      "duration": 120000,
-      "tags": [
-        {"key": "http.method", "value": "POST"},
-        {"key": "http.url", "value": "/api/users"},
-        {"key": "http.status_code", "value": 201},
-        {"key": "http.request.header.content-type", "value": "application/json"}
-      ],
-      "process": {
-        "serviceName": "user-service",
-        "tags": []
-      }
-    },
-    {
-      "traceID": "user-service-trace-001",
-      "spanID": "span003",
-      "operationName": "PUT /api/users/456",
-      "startTime": 1722508225000000,
-      "duration": 80000,
-      "tags": [
-        {"key": "http.method", "value": "PUT"},
-        {"key": "http.url", "value": "/api/users/456"},
-        {"key": "http.status_code", "value": 200},
-        {"key": "http.request.header.authorization", "value": "Bearer token456"},
-        {"key": "http.request.header.content-type", "value": "application/json"}
-      ],
-      "process": {
-        "serviceName": "user-service",
-        "tags": []
-      }
-    },
-    {
-      "traceID": "user-service-trace-001",
-      "spanID": "span004",
-      "operationName": "GET /api/users/789/profile",
-      "startTime": 1722508230000000,
-      "duration": 60000,
-      "tags": [
-        {"key": "http.method", "value": "GET"},
-        {"key": "http.url", "value": "/api/users/789/profile?fields=name,email"},
-        {"key": "http.status_code", "value": 200},
-        {"key": "http.request.header.authorization", "value": "Bearer token789"}
-      ],
-      "process": {
-        "serviceName": "user-service",
-        "tags": []
-      }
-    },
-    {
-      "traceID": "user-service-trace-001",
-      "spanID": "span005",
-      "operationName": "POST /api/auth/login",
-      "startTime": 1722508235000000,
-      "duration": 150000,
-      "tags": [
-        {"key": "http.method", "value": "POST"},
-        {"key": "http.url", "value": "/api/auth/login"},
-        {"key": "http.status_code", "value": 200},
-        {"key": "http.request.header.content-type", "value": "application/json"}
-      ],
-      "process": {
-        "serviceName": "user-service",
-        "tags": []
-      }
-    }
-  ]
+    "scopeSpans": [{
+      "scope": {
+        "name": "user-service-tracer",
+        "version": "1.0.0"
+      },
+      "spans": [
+        {
+          "traceId": "1234567890abcdef1234567890abcdef",
+          "spanId": "abcdef1234567890",
+          "name": "getUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1722508215000000000",
+          "endTimeUnixNano": "1722508215045000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "GET"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users/123"}},
+            {"key": "http.status_code", "value": {"intValue": 200}},
+            {"key": "http.request.header.authorization", "value": {"stringValue": "Bearer token123"}},
+            {"key": "http.request.header.accept-language", "value": {"stringValue": "en-US"}},
+            {"key": "request.params.userId", "value": {"stringValue": "123"}},
+            {"key": "response.body.userId", "value": {"stringValue": "123"}},
+            {"key": "response.body.email", "value": {"stringValue": "user@example.com"}},
+            {"key": "response.body.name", "value": {"stringValue": "John Doe"}}
+          ]
+        },
+        {
+          "traceId": "1234567890abcdef1234567890abcdef",
+          "spanId": "1234567890abcdef",
+          "name": "createUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1722508220000000000",
+          "endTimeUnixNano": "1722508220120000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "POST"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users"}},
+            {"key": "http.status_code", "value": {"intValue": 201}},
+            {"key": "http.request.header.content-type", "value": {"stringValue": "application/json"}},
+            {"key": "request.body.email", "value": {"stringValue": "user@example.com"}},
+            {"key": "request.body.name", "value": {"stringValue": "John Doe"}},
+            {"key": "request.body.password.length", "value": {"intValue": 12}},
+            {"key": "response.body.userId", "value": {"stringValue": "12345"}},
+            {"key": "response.body.email", "value": {"stringValue": "user@example.com"}},
+            {"key": "response.body.name", "value": {"stringValue": "John Doe"}}
+          ]
+        },
+        {
+          "traceId": "1234567890abcdef1234567890abcdef",
+          "spanId": "fedcba0987654321",
+          "name": "updateUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1722508225000000000",
+          "endTimeUnixNano": "1722508225080000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "PUT"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users/456"}},
+            {"key": "http.status_code", "value": {"intValue": 200}},
+            {"key": "http.request.header.authorization", "value": {"stringValue": "Bearer token456"}},
+            {"key": "http.request.header.content-type", "value": {"stringValue": "application/json"}},
+            {"key": "request.params.userId", "value": {"stringValue": "456"}},
+            {"key": "request.body.name", "value": {"stringValue": "John Smith"}},
+            {"key": "request.body.email", "value": {"stringValue": "john.smith@example.com"}},
+            {"key": "response.body.userId", "value": {"stringValue": "456"}},
+            {"key": "response.body.email", "value": {"stringValue": "john.smith@example.com"}},
+            {"key": "response.body.name", "value": {"stringValue": "John Smith"}}
+          ]
+        },
+        {
+          "traceId": "1234567890abcdef1234567890abcdef",
+          "spanId": "0987654321fedcba",
+          "name": "getUserProfile",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1722508230000000000",
+          "endTimeUnixNano": "1722508230060000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "GET"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users/789/profile?fields=name,email"}},
+            {"key": "http.status_code", "value": {"intValue": 200}},
+            {"key": "http.request.header.authorization", "value": {"stringValue": "Bearer token789"}}
+          ]
+        },
+        {
+          "traceId": "1234567890abcdef1234567890abcdef",
+          "spanId": "aabbccddeeff0011",
+          "name": "login",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1722508235000000000",
+          "endTimeUnixNano": "1722508235150000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "POST"}},
+            {"key": "http.url", "value": {"stringValue": "/api/auth/login"}},
+            {"key": "http.status_code", "value": {"intValue": 200}},
+            {"key": "http.request.header.content-type", "value": {"stringValue": "application/json"}}
+          ]
+        }
+      ]
+    }]
+  }]
 }

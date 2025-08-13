@@ -1,0 +1,381 @@
+# FlowSpec Service Contract
+# Generated automatically from traffic analysis
+# 
+# This contract defines the discovered API endpoints and their expected behavior
+# based on observed traffic patterns.
+#
+apiVersion: flowspec/v1alpha1
+kind: ServiceSpec
+metadata:
+  name: generated-service
+  version: v1.0.0
+spec:
+  endpoints:
+    - path: /api/auth/login
+      operations:
+        - method: POST
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:34Z
+            lastSeen: 2025-08-01T10:30:34Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:34Z
+        lastSeen: 2025-08-01T10:30:34Z
+    - path: /api/auth/logout
+      operations:
+        - method: POST
+          responses:
+            statusCodes:
+              - 204
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:35Z
+            lastSeen: 2025-08-01T10:30:35Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:35Z
+        lastSeen: 2025-08-01T10:30:35Z
+    - path: /api/orders
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query:
+              - status
+            headers:
+              - user-agent
+          optional:
+            query:
+              - limit
+            headers: []
+          stats:
+            supportCount: 2
+            firstSeen: 2025-08-01T10:30:32Z
+            lastSeen: 2025-08-01T10:30:33Z
+        - method: POST
+          responses:
+            statusCodes:
+              - 201
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:23Z
+            lastSeen: 2025-08-01T10:30:23Z
+      stats:
+        supportCount: 3
+        firstSeen: 2025-08-01T10:30:23Z
+        lastSeen: 2025-08-01T10:30:33Z
+    - path: /api/orders/ord-11111
+      operations:
+        - method: PUT
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:25Z
+            lastSeen: 2025-08-01T10:30:25Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:25Z
+        lastSeen: 2025-08-01T10:30:25Z
+    - path: /api/orders/ord-12345
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:22Z
+            lastSeen: 2025-08-01T10:30:22Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:22Z
+        lastSeen: 2025-08-01T10:30:22Z
+    - path: /api/orders/ord-22222
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 404
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:26Z
+            lastSeen: 2025-08-01T10:30:26Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:26Z
+        lastSeen: 2025-08-01T10:30:26Z
+    - path: /api/orders/ord-67890
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:24Z
+            lastSeen: 2025-08-01T10:30:24Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:24Z
+        lastSeen: 2025-08-01T10:30:24Z
+    - path: /api/users
+      operations:
+        - method: POST
+          responses:
+            statusCodes:
+              - 201
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:17Z
+            lastSeen: 2025-08-01T10:30:17Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:17Z
+        lastSeen: 2025-08-01T10:30:17Z
+    - path: /api/users/111
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:20Z
+            lastSeen: 2025-08-01T10:30:20Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:20Z
+        lastSeen: 2025-08-01T10:30:20Z
+    - path: /api/users/123
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:15Z
+            lastSeen: 2025-08-01T10:30:15Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:15Z
+        lastSeen: 2025-08-01T10:30:15Z
+    - path: /api/users/222
+      operations:
+        - method: DELETE
+          responses:
+            statusCodes:
+              - 204
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:21Z
+            lastSeen: 2025-08-01T10:30:21Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:21Z
+        lastSeen: 2025-08-01T10:30:21Z
+    - path: /api/users/333
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query:
+              - include
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:30Z
+            lastSeen: 2025-08-01T10:30:30Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:30Z
+        lastSeen: 2025-08-01T10:30:30Z
+    - path: /api/users/444
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query:
+              - include
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:31Z
+            lastSeen: 2025-08-01T10:30:31Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:31Z
+        lastSeen: 2025-08-01T10:30:31Z
+    - path: /api/users/456
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:16Z
+            lastSeen: 2025-08-01T10:30:16Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:16Z
+        lastSeen: 2025-08-01T10:30:16Z
+    - path: /api/users/789
+      operations:
+        - method: PUT
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:18Z
+            lastSeen: 2025-08-01T10:30:18Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:18Z
+        lastSeen: 2025-08-01T10:30:18Z
+    - path: /api/users/999
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 404
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:19Z
+            lastSeen: 2025-08-01T10:30:19Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:19Z
+        lastSeen: 2025-08-01T10:30:19Z
+    - path: /health
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 2
+            firstSeen: 2025-08-01T10:30:27Z
+            lastSeen: 2025-08-01T10:30:28Z
+      stats:
+        supportCount: 2
+        firstSeen: 2025-08-01T10:30:27Z
+        lastSeen: 2025-08-01T10:30:28Z
+    - path: /metrics
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-01T10:30:29Z
+            lastSeen: 2025-08-01T10:30:29Z
+      stats:
+        supportCount: 1
+        firstSeen: 2025-08-01T10:30:29Z
+        lastSeen: 2025-08-01T10:30:29Z
+operationid: ""
+description: ""
+preconditions: {}
+postconditions: {}
+sourcefile: ""
+linenumber: 0

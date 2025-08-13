@@ -52,15 +52,41 @@ func NewNginxAccessIngestor() *NginxAccessIngestor {
 
 // Supports checks if the ingestor can handle the given file path
 func (n *NginxAccessIngestor) Supports(filePath string) bool {
-	// Support common Nginx access log file patterns
+	// First layer: Fast filename-based detection for common patterns
+	if n.supportsFilename(filePath) {
+		return true
+	}
+	
+	// Second layer: Content-based detection for non-standard filenames
+	return n.supportsContent(filePath)
+}
+
+// supportsFilename checks if the filename matches common Nginx access log patterns
+func (n *NginxAccessIngestor) supportsFilename(filePath string) bool {
 	filename := strings.ToLower(filepath.Base(filePath))
 	
-	// Check for common access log naming patterns
+	// Extended list of common access log naming patterns
 	accessLogPatterns := []string{
 		"access.log",
-		"access_log",
+		"access_log", 
 		"nginx.log",
 		"nginx_access.log",
+		"nginx-access.log",
+		"access-log",
+		"web_access.log",
+		"web-access.log",
+		"http_access.log",
+		"http-access.log",
+		"api_access.log",
+		"api-access.log",
+		"app_access.log",
+		"app-access.log",
+		"prod_access.log",
+		"prod-access.log",
+		"staging_access.log",
+		"staging-access.log",
+		"dev_access.log",
+		"dev-access.log",
 	}
 	
 	for _, pattern := range accessLogPatterns {
@@ -69,17 +95,83 @@ func (n *NginxAccessIngestor) Supports(filePath string) bool {
 		}
 	}
 	
-	// Also support compressed versions
-	if strings.HasSuffix(filename, ".gz") || strings.HasSuffix(filename, ".zst") {
-		baseFilename := strings.TrimSuffix(strings.TrimSuffix(filename, ".gz"), ".zst")
-		for _, pattern := range accessLogPatterns {
-			if strings.Contains(baseFilename, pattern) {
-				return true
-			}
+	// Support date-suffixed logs (e.g., access-2025-08-13.log, nginx-access-20250813.log)
+	datePatterns := []string{
+		`access.*\d{4}-\d{2}-\d{2}`,
+		`access.*\d{8}`,
+		`nginx.*\d{4}-\d{2}-\d{2}`,
+		`nginx.*\d{8}`,
+	}
+	
+	for _, pattern := range datePatterns {
+		if matched, _ := regexp.MatchString(pattern, filename); matched {
+			return true
 		}
 	}
 	
+	// Support compressed versions
+	if strings.HasSuffix(filename, ".gz") || strings.HasSuffix(filename, ".zst") {
+		baseFilename := strings.TrimSuffix(strings.TrimSuffix(filename, ".gz"), ".zst")
+		return n.supportsFilename(baseFilename)
+	}
+	
 	return false
+}
+
+// supportsContent performs content-based detection by examining the first few lines
+func (n *NginxAccessIngestor) supportsContent(filePath string) bool {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	
+	// Read first few lines to detect Nginx access log format
+	scanner := bufio.NewScanner(file)
+	linesChecked := 0
+	maxLinesToCheck := 5
+	
+	for scanner.Scan() && linesChecked < maxLinesToCheck {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue // Skip empty lines
+		}
+		
+		if n.isNginxAccessLogLine(line) {
+			return true
+		}
+		linesChecked++
+	}
+	
+	return false
+}
+
+// isNginxAccessLogLine checks if a line matches typical Nginx access log patterns
+func (n *NginxAccessIngestor) isNginxAccessLogLine(line string) bool {
+	// Common Nginx access log patterns to detect:
+	// 1. Combined format: IP - - [timestamp] "method path protocol" status size "referer" "user-agent"
+	// 2. Common format: IP - - [timestamp] "method path protocol" status size
+	// 3. Custom formats with similar structure
+	
+	// Pattern 1: Check for IP address at the beginning
+	ipPattern := `^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`
+	if matched, _ := regexp.MatchString(ipPattern, line); !matched {
+		return false
+	}
+	
+	// Pattern 2: Check for timestamp in brackets [dd/MMM/yyyy:HH:mm:ss +timezone]
+	timestampPattern := `\[\d{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}\s+[+-]\d{4}\]`
+	if matched, _ := regexp.MatchString(timestampPattern, line); !matched {
+		return false
+	}
+	
+	// Pattern 3: Check for HTTP method and status code
+	httpPattern := `"(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|TRACE|CONNECT)\s+.*"\s+\d{3}`
+	if matched, _ := regexp.MatchString(httpPattern, line); !matched {
+		return false
+	}
+	
+	return true
 }
 
 // Ingest processes the input files and returns an iterator of normalized records

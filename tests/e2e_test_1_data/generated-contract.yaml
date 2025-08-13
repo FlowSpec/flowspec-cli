@@ -1,0 +1,191 @@
+# FlowSpec Service Contract
+# Generated automatically from traffic analysis
+# 
+# This contract defines the discovered API endpoints and their expected behavior
+# based on observed traffic patterns.
+#
+apiVersion: flowspec/v1alpha1
+kind: ServiceSpec
+metadata:
+  name: generated-service
+  version: v1.0.0
+spec:
+  endpoints:
+    - path: /api/orders
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          optional:
+            query:
+              - status
+              - limit
+            headers: []
+          stats:
+            supportCount: 3
+            firstSeen: 2025-08-13T12:00:20Z
+            lastSeen: 2025-08-13T12:00:22Z
+        - method: POST
+          responses:
+            statusCodes:
+              - 201
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 2
+            firstSeen: 2025-08-13T12:00:25Z
+            lastSeen: 2025-08-13T12:00:26Z
+      stats:
+        supportCount: 5
+        firstSeen: 2025-08-13T12:00:20Z
+        lastSeen: 2025-08-13T12:00:26Z
+    - path: /api/users
+      operations:
+        - method: POST
+          responses:
+            statusRanges:
+              - 2xx
+              - 4xx
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 3
+            firstSeen: 2025-08-13T12:00:00Z
+            lastSeen: 2025-08-13T12:00:02Z
+      stats:
+        supportCount: 3
+        firstSeen: 2025-08-13T12:00:00Z
+        lastSeen: 2025-08-13T12:00:02Z
+    - path: /api/users/12345
+      operations:
+        - method: DELETE
+          responses:
+            statusCodes:
+              - 204
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-13T12:00:15Z
+            lastSeen: 2025-08-13T12:00:15Z
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-13T12:00:05Z
+            lastSeen: 2025-08-13T12:00:05Z
+        - method: PUT
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-13T12:00:10Z
+            lastSeen: 2025-08-13T12:00:10Z
+      stats:
+        supportCount: 3
+        firstSeen: 2025-08-13T12:00:05Z
+        lastSeen: 2025-08-13T12:00:15Z
+    - path: /api/users/67890
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-13T12:00:06Z
+            lastSeen: 2025-08-13T12:00:06Z
+        - method: PUT
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 1
+            firstSeen: 2025-08-13T12:00:11Z
+            lastSeen: 2025-08-13T12:00:11Z
+      stats:
+        supportCount: 2
+        firstSeen: 2025-08-13T12:00:06Z
+        lastSeen: 2025-08-13T12:00:11Z
+    - path: /health
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 3
+            firstSeen: 2025-08-13T12:00:30Z
+            lastSeen: 2025-08-13T12:00:40Z
+      stats:
+        supportCount: 3
+        firstSeen: 2025-08-13T12:00:30Z
+        lastSeen: 2025-08-13T12:00:40Z
+    - path: /metrics
+      operations:
+        - method: GET
+          responses:
+            statusCodes:
+              - 200
+            aggregation: auto
+          required:
+            query: []
+            headers:
+              - user-agent
+          stats:
+            supportCount: 2
+            firstSeen: 2025-08-13T12:00:45Z
+            lastSeen: 2025-08-13T12:00:50Z
+      stats:
+        supportCount: 2
+        firstSeen: 2025-08-13T12:00:45Z
+        lastSeen: 2025-08-13T12:00:50Z
+operationid: ""
+description: ""
+preconditions: {}
+postconditions: {}
+sourcefile: ""
+linenumber: 0

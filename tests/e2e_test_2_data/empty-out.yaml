@@ -1,0 +1,19 @@
+# FlowSpec Service Contract
+# Generated automatically from traffic analysis
+# 
+# This contract defines the discovered API endpoints and their expected behavior
+# based on observed traffic patterns.
+#
+apiVersion: flowspec/v1alpha1
+kind: ServiceSpec
+metadata:
+  name: generated-service
+  version: v1.0.0
+spec:
+  endpoints: []
+operationid: ""
+description: ""
+preconditions: {}
+postconditions: {}
+sourcefile: ""
+linenumber: 0

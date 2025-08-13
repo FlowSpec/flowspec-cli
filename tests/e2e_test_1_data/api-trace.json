@@ -1,0 +1,113 @@
+{
+  "resourceSpans": [{
+    "resource": {
+      "attributes": [
+        {"key": "service.name", "value": {"stringValue": "api-service"}},
+        {"key": "service.version", "value": {"stringValue": "1.0.0"}}
+      ]
+    },
+    "scopeSpans": [{
+      "scope": {
+        "name": "api-tracer",
+        "version": "1.0.0"
+      },
+      "spans": [
+        {
+          "traceId": "e2e1234567890abcdef1234567890abcd",
+          "spanId": "span001createuser",
+          "name": "createUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1723550400000000000",
+          "endTimeUnixNano": "1723550400200000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "POST"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users"}},
+            {"key": "http.status_code", "value": {"intValue": 201}},
+            {"key": "request.body.email", "value": {"stringValue": "test@example.com"}},
+            {"key": "request.body.name", "value": {"stringValue": "Test User"}},
+            {"key": "response.body.userId", "value": {"stringValue": "12345"}},
+            {"key": "response.body.email", "value": {"stringValue": "test@example.com"}}
+          ]
+        },
+        {
+          "traceId": "e2e1234567890abcdef1234567890abcd",
+          "spanId": "span002getuser",
+          "name": "getUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1723550405000000000",
+          "endTimeUnixNano": "1723550405100000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "GET"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users/12345"}},
+            {"key": "http.status_code", "value": {"intValue": 200}},
+            {"key": "request.params.userId", "value": {"stringValue": "12345"}},
+            {"key": "response.body.userId", "value": {"stringValue": "12345"}},
+            {"key": "response.body.email", "value": {"stringValue": "test@example.com"}},
+            {"key": "response.body.name", "value": {"stringValue": "Test User"}}
+          ]
+        },
+        {
+          "traceId": "e2e1234567890abcdef1234567890abcd",
+          "spanId": "span003updateuser",
+          "name": "updateUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1723550410000000000",
+          "endTimeUnixNano": "1723550410150000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "PUT"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users/12345"}},
+            {"key": "http.status_code", "value": {"intValue": 200}},
+            {"key": "request.params.userId", "value": {"stringValue": "12345"}},
+            {"key": "request.body.name", "value": {"stringValue": "Updated User"}},
+            {"key": "response.body.userId", "value": {"stringValue": "12345"}},
+            {"key": "response.body.name", "value": {"stringValue": "Updated User"}}
+          ]
+        },
+        {
+          "traceId": "e2e1234567890abcdef1234567890abcd",
+          "spanId": "span004deleteuser",
+          "name": "deleteUser",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1723550415000000000",
+          "endTimeUnixNano": "1723550415050000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "DELETE"}},
+            {"key": "http.url", "value": {"stringValue": "/api/users/12345"}},
+            {"key": "http.status_code", "value": {"intValue": 204}},
+            {"key": "request.params.userId", "value": {"stringValue": "12345"}},
+            {"key": "response.body", "value": null}
+          ]
+        },
+        {
+          "traceId": "e2e1234567890abcdef1234567890abcd",
+          "spanId": "span005healthcheck",
+          "name": "healthCheck",
+          "kind": "SPAN_KIND_SERVER",
+          "startTimeUnixNano": "1723550430000000000",
+          "endTimeUnixNano": "1723550430010000000",
+          "status": {
+            "code": "STATUS_CODE_OK"
+          },
+          "attributes": [
+            {"key": "http.method", "value": {"stringValue": "GET"}},
+            {"key": "http.url", "value": {"stringValue": "/health"}},
+            {"key": "http.status_code", "value": {"intValue": 200}},
+            {"key": "response.body.status", "value": {"stringValue": "healthy"}}
+          ]
+        }
+      ]
+    }]
+  }]
+}
