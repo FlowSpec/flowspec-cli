@@ -1376,7 +1376,7 @@ func (engine *DefaultAlignmentEngine) populateEvaluationContext(context *Evaluat
 	context.mu.Lock()
 	defer context.mu.Unlock()
 
-	// Add span attributes to context
+	// Add span attributes to context (flat structure for backward compatibility)
 	for key, value := range span.Attributes {
 		// Keep original key for backward compatibility
 		context.Variables[key] = value
@@ -1386,6 +1386,17 @@ func (engine *DefaultAlignmentEngine) populateEvaluationContext(context *Evaluat
 			context.Variables[safeKey] = value
 		}
 	}
+
+	// Create nested span.attributes structure for JSONLogic expressions
+	expandedAttrs := engine.expandDotKeys(span.Attributes)
+	for key, value := range expandedAttrs {
+		nestedKey := "span.attributes." + key
+		context.Variables[nestedKey] = value
+		engine.setNestedVariable(context.Variables, nestedKey, value)
+	}
+	
+	// Also add all nested paths recursively
+	engine.addNestedPaths(context.Variables, "span.attributes", expandedAttrs)
 
 	// Add span metadata
 	context.Variables["span.id"] = span.SpanID
@@ -1435,6 +1446,75 @@ func (ctx *EvaluationContext) GetAllVariables() map[string]interface{} {
 		result[key] = value
 	}
 	return result
+}
+
+// expandDotKeys converts a flat map with dot-notation keys to a nested map
+func (engine *DefaultAlignmentEngine) expandDotKeys(flat map[string]interface{}) map[string]interface{} {
+	nested := make(map[string]interface{})
+	for key, value := range flat {
+		parts := strings.Split(key, ".")
+		current := nested
+		for i, part := range parts {
+			if i == len(parts)-1 {
+				// Last part, set the value
+				current[part] = value
+			} else {
+				// Intermediate part, create nested map if needed
+				if _, ok := current[part]; !ok {
+					current[part] = make(map[string]interface{})
+				}
+				// Type assertion to continue traversal
+				if next, ok := current[part].(map[string]interface{}); ok {
+					current = next
+				} else {
+					// This case handles when a key is both a prefix and a full key
+					// e.g., "http.method" and "http". We can't create a nested map.
+					// In this scenario, we'll just keep the original flat key.
+					current[key] = value
+					break
+				}
+			}
+		}
+	}
+	return nested
+}
+
+// setNestedVariable sets a nested variable in the context using dot notation
+func (engine *DefaultAlignmentEngine) setNestedVariable(variables map[string]interface{}, key string, value interface{}) {
+	parts := strings.Split(key, ".")
+	current := variables
+	
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			// Last part, set the value
+			current[part] = value
+		} else {
+			// Intermediate part, create nested map if needed
+			if _, ok := current[part]; !ok {
+				current[part] = make(map[string]interface{})
+			}
+			// Type assertion to continue traversal
+			if next, ok := current[part].(map[string]interface{}); ok {
+				current = next
+			} else {
+				// Can't traverse further, stop here
+				return
+			}
+		}
+	}
+}
+
+// addNestedPaths recursively adds all nested paths to the variables map
+func (engine *DefaultAlignmentEngine) addNestedPaths(variables map[string]interface{}, prefix string, obj interface{}) {
+	switch v := obj.(type) {
+	case map[string]interface{}:
+		for key, value := range v {
+			fullPath := prefix + "." + key
+			variables[fullPath] = value
+			// Recursively add nested paths
+			engine.addNestedPaths(variables, fullPath, value)
+		}
+	}
 }
 
 // SpecMatcher methods

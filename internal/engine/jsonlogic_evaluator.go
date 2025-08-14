@@ -80,6 +80,8 @@ func (evaluator *JSONLogicEvaluator) EvaluateAssertion(assertion map[string]inte
 		return nil, fmt.Errorf("failed to build evaluation data: %w", err)
 	}
 
+
+
 	// Check if this is a multi-condition assertion (ServiceSpec format)
 	// If so, convert it to a proper JSONLogic "and" expression
 	processedAssertion := evaluator.preprocessAssertion(assertion)
@@ -203,7 +205,8 @@ func (evaluator *JSONLogicEvaluator) buildEvaluationData(context *EvaluationCont
 		data["span"] = spanData
 
 		// Add raw attributes and underscore-versions for backward compatibility
-		data["attributes"] = span.Attributes
+		// Note: Don't overwrite the expanded attributes structure
+		data["raw_attributes"] = span.Attributes
 		for key, value := range span.Attributes {
 			// Add at root level for backward compatibility
 			data[key] = value
@@ -697,4 +700,13 @@ func ValidateJSONLogicConfig(config *JSONLogicConfig) error {
 	}
 
 	return nil
+}
+
+// getMapKeys returns the keys of a map for debugging
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
