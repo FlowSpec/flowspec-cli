@@ -149,11 +149,31 @@ func (p *DefaultTraceFileParser) isHARTrace(data map[string]interface{}) bool {
 
 // parseFlowSpecTrace parses a FlowSpec trace format
 func (p *DefaultTraceFileParser) parseFlowSpecTrace(data []byte) (*models.TraceData, error) {
+	// First try to parse as the internal map format
 	var traceData models.TraceData
-	if err := json.Unmarshal(data, &traceData); err != nil {
-		return nil, fmt.Errorf("failed to parse FlowSpec trace: %w", err)
+	if err := json.Unmarshal(data, &traceData); err == nil {
+		// Successfully parsed as map format, validate it
+		if err := p.validateTraceData(&traceData); err != nil {
+			return nil, fmt.Errorf("invalid FlowSpec trace data: %w", err)
+		}
+		
+		// Build span tree
+		if err := traceData.BuildSpanTree(); err != nil {
+			return nil, fmt.Errorf("failed to build span tree: %w", err)
+		}
+		
+		return &traceData, nil
 	}
-
+	
+	// Try to parse as the compatible array format
+	var compatData models.TraceDataCompat
+	if err := json.Unmarshal(data, &compatData); err != nil {
+		return nil, fmt.Errorf("failed to parse FlowSpec trace in either format: %w", err)
+	}
+	
+	// Convert to internal format
+	traceData = *models.FromCompatFormat(&compatData)
+	
 	// Validate the trace data
 	if err := p.validateTraceData(&traceData); err != nil {
 		return nil, fmt.Errorf("invalid FlowSpec trace data: %w", err)

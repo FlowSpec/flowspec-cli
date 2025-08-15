@@ -2,8 +2,8 @@
 
 ## Test Overview
 - **Test Name**: E2E Test 1: Explore → Verify Workflow
-- **Date**: Wed Aug 13 13:40:01 BST 2025
-- **CLI Version**: flowspec-cli version d181071-dirty (commit: d181071, built: 2025-08-13T11:26:06Z)
+- **Date**: Thu Aug 14 02:53:49 BST 2025
+- **CLI Version**: flowspec-cli version fed06d9 (commit: fed06d9, built: 2025-08-14T01:53:39Z)
 
 ## Test Steps Results
 

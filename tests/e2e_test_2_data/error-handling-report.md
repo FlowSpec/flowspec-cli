@@ -2,8 +2,8 @@
 
 ## Test Overview
 - **Test Name**: E2E Test 2: Error Handling & Edge Cases
-- **Date**: Wed Aug 13 13:56:30 BST 2025
-- **CLI Version**: flowspec-cli version d181071-dirty (commit: d181071, built: 2025-08-13T12:48:25Z)
+- **Date**: Thu Aug 14 02:54:17 BST 2025
+- **CLI Version**: flowspec-cli version fed06d9 (commit: fed06d9, built: 2025-08-14T01:53:39Z)
 - **Total Tests**: 27
 - **Passed**: 27
 - **Failed**: 0

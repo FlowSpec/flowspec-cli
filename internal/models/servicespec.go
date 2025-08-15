@@ -307,8 +307,16 @@ func (e *ParseError) Error() string {
 type TraceData struct {
 	TraceID  string           `json:"traceId"`
 	RootSpan *Span            `json:"rootSpan"`
-	Spans    map[string]*Span `json:"spans"`
+	Spans    map[string]*Span `json:"spans"`           // Internal map for O(1) access
 	SpanTree *SpanNode        `json:"spanTree"`
+}
+
+// TraceDataCompat represents trace data in a format compatible with standard tracing systems
+type TraceDataCompat struct {
+	TraceID  string    `json:"traceId"`
+	RootSpan *Span     `json:"rootSpan,omitempty"`
+	Spans    []*Span   `json:"spans"`              // Array format for compatibility
+	SpanTree *SpanNode `json:"spanTree,omitempty"`
 }
 
 // Span represents a single span in an OpenTelemetry trace
@@ -470,6 +478,36 @@ func (td *TraceData) GetAllSpans() []*Span {
 		spans = append(spans, span)
 	}
 	return spans
+}
+
+// ToCompatFormat converts TraceData to a standard-compatible format
+func (td *TraceData) ToCompatFormat() *TraceDataCompat {
+	spans := make([]*Span, 0, len(td.Spans))
+	for _, span := range td.Spans {
+		spans = append(spans, span)
+	}
+	
+	return &TraceDataCompat{
+		TraceID:  td.TraceID,
+		RootSpan: td.RootSpan,
+		Spans:    spans,
+		SpanTree: td.SpanTree,
+	}
+}
+
+// FromCompatFormat creates TraceData from a standard-compatible format
+func FromCompatFormat(compat *TraceDataCompat) *TraceData {
+	spans := make(map[string]*Span)
+	for _, span := range compat.Spans {
+		spans[span.SpanID] = span
+	}
+	
+	return &TraceData{
+		TraceID:  compat.TraceID,
+		RootSpan: compat.RootSpan,
+		Spans:    spans,
+		SpanTree: compat.SpanTree,
+	}
 }
 
 // AlignmentReport-related data structures

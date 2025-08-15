@@ -22,13 +22,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/flowspec/flowspec-cli/internal/engine"
-	"github.com/flowspec/flowspec-cli/internal/ingestor/traffic"
 	"github.com/flowspec/flowspec-cli/internal/models"
 	"github.com/flowspec/flowspec-cli/internal/parser"
-	"github.com/flowspec/flowspec-cli/internal/renderer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,7 +67,6 @@ func TestCompleteExploreToVerifyWorkflow(t *testing.T) {
 	// Step 6: Verify artifacts were created
 	artifactsDir := filepath.Join(tmpDir, "artifacts")
 	summaryFile := filepath.Join(artifactsDir, "flowspec-summary.json")
-	junitFile := filepath.Join(artifactsDir, "flowspec-report.xml")
 	
 	// Note: Artifacts might not be created in test mode, so we check if they exist
 	if _, err := os.Stat(summaryFile); err == nil {
@@ -304,7 +299,10 @@ func TestArtifactGeneration(t *testing.T) {
 	// Change to temp directory to ensure artifacts are created there
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalDir)
+	defer func() {
+		err := os.Chdir(originalDir)
+		require.NoError(t, err)
+	}()
 	
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
@@ -408,7 +406,13 @@ func runExploreCommand(t *testing.T, logFile, contractFile string) {
 	// Build the CLI binary if it doesn't exist
 	buildCLI(t)
 	
-	cmd := exec.Command("./flowspec-cli", "explore", 
+	// Get absolute path to the binary
+	projectRoot := "../.."
+	binaryPath := filepath.Join(projectRoot, "flowspec-cli")
+	absBinaryPath, err := filepath.Abs(binaryPath)
+	require.NoError(t, err)
+	
+	cmd := exec.Command(absBinaryPath, "explore", 
 		"--traffic", logFile,
 		"--out", contractFile,
 		"--min-samples", "2", // Lower threshold for test data
@@ -431,10 +435,16 @@ func runVerifyCommand(t *testing.T, contractFile, traceFile string, extraArgs ..
 func runVerifyCommandWithExitCode(t *testing.T, contractFile, traceFile string, extraArgs ...string) int {
 	buildCLI(t)
 	
+	// Get absolute path to the binary
+	projectRoot := "../.."
+	binaryPath := filepath.Join(projectRoot, "flowspec-cli")
+	absBinaryPath, err := filepath.Abs(binaryPath)
+	require.NoError(t, err)
+	
 	args := []string{"verify", "--path", contractFile, "--trace", traceFile}
 	args = append(args, extraArgs...)
 	
-	cmd := exec.Command("./flowspec-cli", args...)
+	cmd := exec.Command(absBinaryPath, args...)
 	output, err := cmd.CombinedOutput()
 	
 	exitCode := 0
@@ -453,10 +463,16 @@ func runVerifyCommandWithExitCode(t *testing.T, contractFile, traceFile string, 
 func runVerifyCommandWithOutput(t *testing.T, contractFile, traceFile string, extraArgs ...string) (string, int) {
 	buildCLI(t)
 	
+	// Get absolute path to the binary
+	projectRoot := "../.."
+	binaryPath := filepath.Join(projectRoot, "flowspec-cli")
+	absBinaryPath, err := filepath.Abs(binaryPath)
+	require.NoError(t, err)
+	
 	args := []string{"verify", "--path", contractFile, "--trace", traceFile}
 	args = append(args, extraArgs...)
 	
-	cmd := exec.Command("./flowspec-cli", args...)
+	cmd := exec.Command(absBinaryPath, args...)
 	output, err := cmd.CombinedOutput()
 	
 	exitCode := 0
@@ -472,74 +488,111 @@ func runVerifyCommandWithOutput(t *testing.T, contractFile, traceFile string, ex
 }
 
 func buildCLI(t *testing.T) {
+	// Get the project root directory (two levels up from internal/integration)
+	projectRoot := "../.."
+	binaryPath := filepath.Join(projectRoot, "flowspec-cli")
+	
 	// Check if binary already exists
-	if _, err := os.Stat("./flowspec-cli"); err == nil {
+	if _, err := os.Stat(binaryPath); err == nil {
 		return
 	}
 	
-	// Build the CLI binary
+	// Build the CLI binary from the project root
 	cmd := exec.Command("go", "build", "-o", "flowspec-cli", "./cmd/flowspec-cli")
+	cmd.Dir = projectRoot
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("Build output: %s", string(output))
 		t.Fatalf("Failed to build CLI: %v", err)
 	}
 	
-	t.Logf("CLI binary built successfully")
+	t.Logf("CLI binary built successfully at %s", binaryPath)
 }
 
 func createMatchingTraceData(t *testing.T, filename string, spec models.ServiceSpec) {
-	// Create trace data that matches the discovered endpoints
+	// Create trace data in FlowSpec format (spans as map, not array)
 	traces := map[string]interface{}{
-		"traces": []map[string]interface{}{
-			{
-				"traceId": "test-trace-1",
-				"spans":   []map[string]interface{}{},
-			},
-		},
+		"traceId": "test-trace-1",
+		"spans":   map[string]interface{}{},
 	}
 	
 	// Generate spans for each endpoint/operation
-	spans := []map[string]interface{}{}
+	spansMap := map[string]interface{}{}
 	spanId := 1
 	
+	t.Logf("Generating trace data for %d endpoints", len(spec.Spec.Endpoints))
+	
 	for _, endpoint := range spec.Spec.Endpoints {
+		t.Logf("Processing endpoint: %s with %d operations", endpoint.Path, len(endpoint.Operations))
 		for _, operation := range endpoint.Operations {
+			spanIdStr := fmt.Sprintf("span-%d", spanId)
 			span := map[string]interface{}{
-				"spanId":        fmt.Sprintf("span-%d", spanId),
-				"operationName": fmt.Sprintf("%s %s", operation.Method, endpoint.Path),
-				"tags": map[string]interface{}{
+				"spanId":     spanIdStr,
+				"traceId":    "test-trace-1",
+				"name":       fmt.Sprintf("%s %s", operation.Method, endpoint.Path),
+				"startTime":  1692000000000000000, // Mock timestamp
+				"endTime":    1692000001000000000, // Mock timestamp
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
+				},
+				"attributes": map[string]interface{}{
 					"http.method": operation.Method,
 					"http.url":    endpoint.Path,
 				},
+				"events": []interface{}{},
 			}
 			
 			// Add status code from responses
 			if len(operation.Responses.StatusCodes) > 0 {
-				span["tags"].(map[string]interface{})["http.status_code"] = operation.Responses.StatusCodes[0]
+				span["attributes"].(map[string]interface{})["http.status_code"] = operation.Responses.StatusCodes[0]
 			} else if len(operation.Responses.StatusRanges) > 0 {
 				// Use a representative status code for the range
 				switch operation.Responses.StatusRanges[0] {
 				case "2xx":
-					span["tags"].(map[string]interface{})["http.status_code"] = 200
+					span["attributes"].(map[string]interface{})["http.status_code"] = 200
 				case "4xx":
-					span["tags"].(map[string]interface{})["http.status_code"] = 404
+					span["attributes"].(map[string]interface{})["http.status_code"] = 404
 				case "5xx":
-					span["tags"].(map[string]interface{})["http.status_code"] = 500
+					span["attributes"].(map[string]interface{})["http.status_code"] = 500
 				}
 			}
 			
 			// Add required headers
 			for _, header := range operation.Required.Headers {
-				span["tags"].(map[string]interface{})[fmt.Sprintf("http.request.header.%s", header)] = "test-value"
+				span["attributes"].(map[string]interface{})[fmt.Sprintf("http.request.header.%s", header)] = "test-value"
 			}
 			
-			spans = append(spans, span)
+			spansMap[spanIdStr] = span
 			spanId++
 		}
 	}
 	
-	traces["traces"].([]map[string]interface{})[0]["spans"] = spans
+	t.Logf("Generated %d spans", len(spansMap))
+	
+	// If no spans were generated from the spec, create a basic span to ensure the trace is valid
+	if len(spansMap) == 0 {
+		t.Logf("No spans generated from spec, creating basic span")
+		spansMap["span-1"] = map[string]interface{}{
+			"spanId":  "span-1",
+			"traceId": "test-trace-1",
+			"name":    "GET /api/test",
+			"startTime": 1692000000000000000,
+			"endTime":   1692000001000000000,
+			"status": map[string]interface{}{
+				"code":    "OK",
+				"message": "",
+			},
+			"attributes": map[string]interface{}{
+				"http.method":     "GET",
+				"http.url":        "/api/test",
+				"http.status_code": 200,
+			},
+			"events": []interface{}{},
+		}
+	}
+	
+	traces["spans"] = spansMap
 	
 	data, err := json.MarshalIndent(traces, "", "  ")
 	require.NoError(t, err)
@@ -611,63 +664,99 @@ spec:
 
 func createComprehensiveTraceData(t *testing.T, filename string) {
 	traceData := map[string]interface{}{
-		"traces": []map[string]interface{}{
+		"traceId": "comprehensive-trace",
+		"spans": []map[string]interface{}{
 			{
-				"traceId": "comprehensive-trace",
-				"spans": []map[string]interface{}{
-					{
-						"spanId":        "span-1",
-						"operationName": "GET /api/users/123",
-						"tags": map[string]interface{}{
-							"http.method":                        "GET",
-							"http.url":                          "/api/users/123",
-							"http.status_code":                  200,
-							"http.request.header.authorization": "Bearer token123",
-							"http.request.header.accept-language": "en-US",
-						},
-					},
-					{
-						"spanId":        "span-2",
-						"operationName": "PUT /api/users/123",
-						"tags": map[string]interface{}{
-							"http.method":                        "PUT",
-							"http.url":                          "/api/users/123",
-							"http.status_code":                  200,
-							"http.request.header.authorization": "Bearer token123",
-							"http.request.header.content-type":  "application/json",
-						},
-					},
-					{
-						"spanId":        "span-3",
-						"operationName": "GET /api/posts",
-						"tags": map[string]interface{}{
-							"http.method":                "GET",
-							"http.url":                   "/api/posts?limit=10&offset=0",
-							"http.status_code":           200,
-							"http.request.header.accept": "application/json",
-						},
-					},
-					{
-						"spanId":        "span-4",
-						"operationName": "POST /api/posts",
-						"tags": map[string]interface{}{
-							"http.method":                        "POST",
-							"http.url":                          "/api/posts",
-							"http.status_code":                  201,
-							"http.request.header.authorization": "Bearer token123",
-							"http.request.header.content-type":  "application/json",
-						},
-					},
-					{
-						"spanId":        "span-5",
-						"operationName": "GET /health",
-						"tags": map[string]interface{}{
-							"http.method":     "GET",
-							"http.url":        "/health",
-							"http.status_code": 200,
-						},
-					},
+				"spanId":    "span-1",
+				"traceId":   "comprehensive-trace",
+				"name":      "GET /api/users/123",
+				"startTime": 1692000000000000000,
+				"endTime":   1692000001000000000,
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
 				},
+				"attributes": map[string]interface{}{
+					"http.method":                        "GET",
+					"http.url":                          "/api/users/123",
+					"http.status_code":                  200,
+					"http.request.header.authorization": "Bearer token123",
+					"http.request.header.accept-language": "en-US",
+				},
+				"events": []interface{}{},
+			},
+			{
+				"spanId":    "span-2",
+				"traceId":   "comprehensive-trace",
+				"name":      "PUT /api/users/123",
+				"startTime": 1692000000000000000,
+				"endTime":   1692000001000000000,
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
+				},
+				"attributes": map[string]interface{}{
+					"http.method":                        "PUT",
+					"http.url":                          "/api/users/123",
+					"http.status_code":                  200,
+					"http.request.header.authorization": "Bearer token123",
+					"http.request.header.content-type":  "application/json",
+				},
+				"events": []interface{}{},
+			},
+			{
+				"spanId":    "span-3",
+				"traceId":   "comprehensive-trace",
+				"name":      "GET /api/posts",
+				"startTime": 1692000000000000000,
+				"endTime":   1692000001000000000,
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
+				},
+				"attributes": map[string]interface{}{
+					"http.method":                "GET",
+					"http.url":                   "/api/posts?limit=10&offset=0",
+					"http.status_code":           200,
+					"http.request.header.accept": "application/json",
+				},
+				"events": []interface{}{},
+			},
+			{
+				"spanId":    "span-4",
+				"traceId":   "comprehensive-trace",
+				"name":      "POST /api/posts",
+				"startTime": 1692000000000000000,
+				"endTime":   1692000001000000000,
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
+				},
+				"attributes": map[string]interface{}{
+					"http.method":                        "POST",
+					"http.url":                          "/api/posts",
+					"http.status_code":                  201,
+					"http.request.header.authorization": "Bearer token123",
+					"http.request.header.content-type":  "application/json",
+				},
+				"events": []interface{}{},
+			},
+			{
+				"spanId":    "span-5",
+				"traceId":   "comprehensive-trace",
+				"name":      "GET /health",
+				"startTime": 1692000000000000000,
+				"endTime":   1692000001000000000,
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
+				},
+				"attributes": map[string]interface{}{
+					"http.method":     "GET",
+					"http.url":        "/health",
+					"http.status_code": 200,
+				},
+				"events": []interface{}{},
 			},
 		},
 	}
@@ -703,21 +792,26 @@ spec:
 }
 
 func createSimpleTraceData(t *testing.T, filename string) {
+	// Use array format for better compatibility with standard tracing systems
 	traceData := map[string]interface{}{
-		"traces": []map[string]interface{}{
+		"traceId": "simple-trace",
+		"spans": []map[string]interface{}{
 			{
+				"spanId":  "span-1",
 				"traceId": "simple-trace",
-				"spans": []map[string]interface{}{
-					{
-						"spanId":        "span-1",
-						"operationName": "GET /api/test",
-						"tags": map[string]interface{}{
-							"http.method":     "GET",
-							"http.url":        "/api/test",
-							"http.status_code": 200,
-						},
-					},
+				"name":    "GET /api/test",
+				"startTime": 1692000000000000000,
+				"endTime":   1692000001000000000,
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
 				},
+				"attributes": map[string]interface{}{
+					"http.method":     "GET",
+					"http.url":        "/api/test",
+					"http.status_code": 200,
+				},
+				"events": []interface{}{},
 			},
 		},
 	}
@@ -731,20 +825,24 @@ func createSimpleTraceData(t *testing.T, filename string) {
 
 func createFailingTraceData(t *testing.T, filename string) {
 	traceData := map[string]interface{}{
-		"traces": []map[string]interface{}{
+		"traceId": "failing-trace",
+		"spans": []map[string]interface{}{
 			{
-				"traceId": "failing-trace",
-				"spans": []map[string]interface{}{
-					{
-						"spanId":        "span-1",
-						"operationName": "GET /api/test",
-						"tags": map[string]interface{}{
-							"http.method":     "GET",
-							"http.url":        "/api/test",
-							"http.status_code": 500, // Wrong status code
-						},
-					},
+				"spanId":    "span-1",
+				"traceId":   "failing-trace",
+				"name":      "GET /api/test",
+				"startTime": 1692000000000000000,
+				"endTime":   1692000001000000000,
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
 				},
+				"attributes": map[string]interface{}{
+					"http.method":     "GET",
+					"http.url":        "/api/test",
+					"http.status_code": 500, // Wrong status code
+				},
+				"events": []interface{}{},
 			},
 		},
 	}
@@ -781,20 +879,24 @@ spec:
 
 func createActionTestTraceData(t *testing.T, filename string) {
 	traceData := map[string]interface{}{
-		"traces": []map[string]interface{}{
+		"traceId": "action-test-trace",
+		"spans": []map[string]interface{}{
 			{
-				"traceId": "action-test-trace",
-				"spans": []map[string]interface{}{
-					{
-						"spanId":        "span-1",
-						"operationName": "GET /api/action/test",
-						"tags": map[string]interface{}{
-							"http.method":     "GET",
-							"http.url":        "/api/action/test",
-							"http.status_code": 200,
-						},
-					},
+				"spanId":    "span-1",
+				"traceId":   "action-test-trace",
+				"name":      "GET /api/action/test",
+				"startTime": 1692000000000000000,
+				"endTime":   1692000001000000000,
+				"status": map[string]interface{}{
+					"code":    "OK",
+					"message": "",
 				},
+				"attributes": map[string]interface{}{
+					"http.method":     "GET",
+					"http.url":        "/api/action/test",
+					"http.status_code": 200,
+				},
+				"events": []interface{}{},
 			},
 		},
 	}
@@ -823,15 +925,11 @@ func modifyTraceRemoveHeader(t *testing.T, filename, headerName string) {
 	require.NoError(t, err)
 	
 	// Remove the specified header from all spans
-	traces := traceData["traces"].([]interface{})
-	for _, trace := range traces {
-		traceMap := trace.(map[string]interface{})
-		spans := traceMap["spans"].([]interface{})
-		for _, span := range spans {
-			spanMap := span.(map[string]interface{})
-			tags := spanMap["tags"].(map[string]interface{})
-			delete(tags, fmt.Sprintf("http.request.header.%s", headerName))
-		}
+	spans := traceData["spans"].([]interface{})
+	for _, span := range spans {
+		spanMap := span.(map[string]interface{})
+		attributes := spanMap["attributes"].(map[string]interface{})
+		delete(attributes, fmt.Sprintf("http.request.header.%s", headerName))
 	}
 	
 	modifiedData, err := json.MarshalIndent(traceData, "", "  ")
@@ -850,15 +948,11 @@ func modifyTraceStatusCode(t *testing.T, filename string, statusCode int) {
 	require.NoError(t, err)
 	
 	// Change status code in all spans
-	traces := traceData["traces"].([]interface{})
-	for _, trace := range traces {
-		traceMap := trace.(map[string]interface{})
-		spans := traceMap["spans"].([]interface{})
-		for _, span := range spans {
-			spanMap := span.(map[string]interface{})
-			tags := spanMap["tags"].(map[string]interface{})
-			tags["http.status_code"] = statusCode
-		}
+	spans := traceData["spans"].([]interface{})
+	for _, span := range spans {
+		spanMap := span.(map[string]interface{})
+		attributes := spanMap["attributes"].(map[string]interface{})
+		attributes["http.status_code"] = statusCode
 	}
 	
 	modifiedData, err := json.MarshalIndent(traceData, "", "  ")
@@ -877,15 +971,11 @@ func modifyTraceMethod(t *testing.T, filename, method string) {
 	require.NoError(t, err)
 	
 	// Change HTTP method in all spans
-	traces := traceData["traces"].([]interface{})
-	for _, trace := range traces {
-		traceMap := trace.(map[string]interface{})
-		spans := traceMap["spans"].([]interface{})
-		for _, span := range spans {
-			spanMap := span.(map[string]interface{})
-			tags := spanMap["tags"].(map[string]interface{})
-			tags["http.method"] = method
-		}
+	spans := traceData["spans"].([]interface{})
+	for _, span := range spans {
+		spanMap := span.(map[string]interface{})
+		attributes := spanMap["attributes"].(map[string]interface{})
+		attributes["http.method"] = method
 	}
 	
 	modifiedData, err := json.MarshalIndent(traceData, "", "  ")

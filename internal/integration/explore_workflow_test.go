@@ -330,13 +330,23 @@ spec:
           responses:`, operation.Method)
 			
 			if len(operation.Responses.StatusCodes) > 0 {
-				yamlContent += fmt.Sprintf(`
-            statusCodes: %v`, operation.Responses.StatusCodes)
+				// Format status codes as proper YAML array
+				yamlContent += `
+            statusCodes:`
+				for _, code := range operation.Responses.StatusCodes {
+					yamlContent += fmt.Sprintf(`
+              - %d`, code)
+				}
 			}
 			
 			if len(operation.Responses.StatusRanges) > 0 {
-				yamlContent += fmt.Sprintf(`
-            statusRanges: %v`, operation.Responses.StatusRanges)
+				// Format status ranges as proper YAML array
+				yamlContent += `
+            statusRanges:`
+				for _, r := range operation.Responses.StatusRanges {
+					yamlContent += fmt.Sprintf(`
+              - "%s"`, r)
+				}
 			}
 			
 			if operation.Responses.Aggregation != "" {

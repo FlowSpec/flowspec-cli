@@ -200,26 +200,44 @@ func (evaluator *JSONLogicEvaluator) buildEvaluationData(context *EvaluationCont
 		}
 
 		// Also add expanded attributes under the "attributes" key for JSONLogic expressions
-		spanData["attributes"] = expandedAttrs
+		if expandedAttrs != nil {
+			spanData["attributes"] = expandedAttrs
+		} else {
+			spanData["attributes"] = make(map[string]interface{})
+		}
 
 		data["span"] = spanData
+
+		// Add expanded attributes at root level for easy access
+		if expandedAttrs != nil {
+			data["attributes"] = expandedAttrs
+		} else {
+			data["attributes"] = make(map[string]interface{})
+		}
 
 		// Add raw attributes and underscore-versions for backward compatibility
 		// Note: Don't overwrite the expanded attributes structure
 		data["raw_attributes"] = span.Attributes
 		for key, value := range span.Attributes {
-			// Add at root level for backward compatibility
-			data[key] = value
+			// Add at root level for backward compatibility, but skip "attributes" to avoid overwriting
+			if key != "attributes" {
+				data[key] = value
+			}
 			// Add underscore version
 			safeKey := strings.ReplaceAll(key, ".", "_")
-			data[safeKey] = value
+			if safeKey != "attributes" {
+				data[safeKey] = value
+			}
 		}
 
 		// Also add the expanded nested structure to the root level
 		// This allows JSONLogic to access "request.id" as nested path
 		for key, value := range expandedAttrs {
-			if _, exists := data[key]; !exists {
-				data[key] = value
+			// Skip "attributes" key to avoid overwriting the structured attributes
+			if key != "attributes" {
+				if _, exists := data[key]; !exists {
+					data[key] = value
+				}
 			}
 		}
 
@@ -279,28 +297,39 @@ func (evaluator *JSONLogicEvaluator) buildEvaluationData(context *EvaluationCont
 
 // expandDotKeys converts a flat map with dot-notation keys to a nested map
 func expandDotKeys(flat map[string]interface{}) map[string]interface{} {
+	if flat == nil {
+		return make(map[string]interface{})
+	}
 	nested := make(map[string]interface{})
+	
+	// First, add all flat keys as-is for backward compatibility
 	for key, value := range flat {
-		parts := strings.Split(key, ".")
-		current := nested
-		for i, part := range parts {
-			if i == len(parts)-1 {
-				// Last part, set the value
-				current[part] = value
-			} else {
-				// Intermediate part, create nested map if needed
-				if _, ok := current[part]; !ok {
-					current[part] = make(map[string]interface{})
-				}
-				// Type assertion to continue traversal
-				if next, ok := current[part].(map[string]interface{}); ok {
-					current = next
+		nested[key] = value
+	}
+	
+	// Then, create nested structure for dot-notation keys
+	for key, value := range flat {
+		if strings.Contains(key, ".") {
+			parts := strings.Split(key, ".")
+			current := nested
+			for i, part := range parts {
+				if i == len(parts)-1 {
+					// Last part, set the value
+					current[part] = value
 				} else {
-					// This case handles when a key is both a prefix and a full key
-					// e.g., "http.method" and "http". We can't create a nested map.
-					// In this scenario, we'll just keep the original flat key.
-					current[key] = value
-					break
+					// Intermediate part, create nested map if needed
+					if _, ok := current[part]; !ok {
+						current[part] = make(map[string]interface{})
+					}
+					// Type assertion to continue traversal
+					if next, ok := current[part].(map[string]interface{}); ok {
+						current = next
+					} else {
+						// This case handles when a key is both a prefix and a full key
+						// e.g., "http.method" and "http". We can't create a nested map.
+						// In this scenario, we'll just keep the original flat key.
+						break
+					}
 				}
 			}
 		}
