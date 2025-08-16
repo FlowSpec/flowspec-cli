@@ -1,0 +1,20 @@
+apiVersion: flowspec/v1
+kind: ServiceSpec
+metadata:
+  name: users
+spec:
+  endpoints:
+    - name: getProfile
+      method: GET
+      path: /users/{id}
+      expected_status: [200]
+      responses: [200]
+      required_headers: [Authorization]
+      required:
+        headers: [Authorization]
+    - name: listUsers
+      method: GET
+      path: /users
+      expected_status: [200]
+      responses: [200]
+# 注意：partial 故意不包含 createUser，以制造 4/5 覆盖率=0.8 的场景

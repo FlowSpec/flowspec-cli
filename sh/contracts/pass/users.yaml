@@ -1,0 +1,24 @@
+apiVersion: flowspec/v1
+kind: ServiceSpec
+metadata:
+  name: users
+spec:
+  endpoints:
+    - name: getProfile
+      method: GET
+      path: /users/{id}
+      expected_status: [200]
+      responses: [200]
+      required_headers: [Authorization]
+      required:
+        headers: [Authorization]
+    - name: createUser
+      method: POST
+      path: /users
+      expected_status: [201]
+      responses: [201]
+    - name: listUsers
+      method: GET
+      path: /users
+      expected_status: [200]
+      responses: [200]

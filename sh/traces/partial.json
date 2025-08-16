@@ -1,0 +1,82 @@
+{
+  "resourceSpans": [
+    {
+      "resource": { "attributes": [{ "key": "service.name", "value": { "stringValue": "checkout" } }] },
+      "scopeSpans": [{
+        "scope": { "name": "manual" },
+        "spans": [
+          {
+            "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "spanId": "bbbbbbbbbbbbbbbb",
+            "name": "HTTP POST /orders",
+            "kind": "SPAN_KIND_SERVER",
+            "startTimeUnixNano": "1710000020000000000",
+            "endTimeUnixNano":   "1710000021000000000",
+            "attributes": [
+              { "key": "http.method", "value": { "stringValue": "POST" } },
+              { "key": "http.route",  "value": { "stringValue": "/orders" } },
+              { "key": "http.target", "value": { "stringValue": "/orders" } },
+              { "key": "http.status_code", "value": { "intValue": 201 } },
+              { "key": "http.request.header.authorization", "value": { "stringValue": "Bearer X" } }
+            ],
+            "status": { "code": "STATUS_CODE_OK" }
+          },
+          {
+            "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "spanId": "bbbbbbbbbbbbbbbc",
+            "name": "HTTP GET /health",
+            "kind": "SPAN_KIND_SERVER",
+            "startTimeUnixNano": "1710000022000000000",
+            "endTimeUnixNano":   "1710000022500000000",
+            "attributes": [
+              { "key": "http.method", "value": { "stringValue": "GET" } },
+              { "key": "http.route",  "value": { "stringValue": "/health" } },
+              { "key": "http.target", "value": { "stringValue": "/health" } },
+              { "key": "http.status_code", "value": { "intValue": 200 } }
+            ],
+            "status": { "code": "STATUS_CODE_OK" }
+          }
+        ]
+      }]
+    },
+    {
+      "resource": { "attributes": [{ "key": "service.name", "value": { "stringValue": "users" } }] },
+      "scopeSpans": [{
+        "scope": { "name": "manual" },
+        "spans": [
+          {
+            "traceId": "cccccccccccccccccccccccccccccccc",
+            "spanId": "dddddddddddddddd",
+            "name": "HTTP GET /users/:id",
+            "kind": "SPAN_KIND_SERVER",
+            "startTimeUnixNano": "1710000023000000000",
+            "endTimeUnixNano":   "1710000023500000000",
+            "attributes": [
+              { "key": "http.method", "value": { "stringValue": "GET" } },
+              { "key": "http.route",  "value": { "stringValue": "/users/:id" } },
+              { "key": "http.target", "value": { "stringValue": "/users/123" } },
+              { "key": "http.status_code", "value": { "intValue": 200 } },
+              { "key": "http.request.header.authorization", "value": { "stringValue": "Bearer X" } }
+            ],
+            "status": { "code": "STATUS_CODE_OK" }
+          },
+          {
+            "traceId": "cccccccccccccccccccccccccccccccc",
+            "spanId": "dddddddddddddddf",
+            "name": "HTTP GET /users",
+            "kind": "SPAN_KIND_SERVER",
+            "startTimeUnixNano": "1710000026000000000",
+            "endTimeUnixNano":   "1710000026500000000",
+            "attributes": [
+              { "key": "http.method", "value": { "stringValue": "GET" } },
+              { "key": "http.route",  "value": { "stringValue": "/users" } },
+              { "key": "http.target", "value": { "stringValue": "/users" } },
+              { "key": "http.status_code", "value": { "intValue": 200 } }
+            ],
+            "status": { "code": "STATUS_CODE_OK" }
+          }
+        ]
+      }]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "resourceSpans": [
+    {
+      "resource": { "attributes": [{ "key": "service.name", "value": { "stringValue": "users" } }] },
+      "scopeSpans": [{
+        "scope": { "name": "manual" },
+        "spans": [
+          {
+            "traceId": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "spanId": "ffffffffffffffff",
+            "name": "HTTP GET /users/:id",
+            "kind": "SPAN_KIND_SERVER",
+            "startTimeUnixNano": "1710000030000000000",
+            "endTimeUnixNano":   "1710000030500000000",
+            "attributes": [
+              { "key": "http.method", "value": { "stringValue": "GET" } },
+              { "key": "http.route",  "value": { "stringValue": "/users/:id" } },
+              { "key": "http.target", "value": { "stringValue": "/users/456" } },
+              { "key": "http.status_code", "value": { "intValue": 200 } },
+              { "key": "http.request.header.authorization", "value": { "stringValue": "Bearer X" } }
+            ],
+            "status": { "code": "STATUS_CODE_OK" }
+          }
+        ]
+      }]
+    }
+  ]
+}

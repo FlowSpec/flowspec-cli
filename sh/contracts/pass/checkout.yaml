@@ -1,0 +1,19 @@
+apiVersion: flowspec/v1
+kind: ServiceSpec
+metadata:
+  name: checkout
+spec:
+  endpoints:
+    - name: placeOrder
+      method: POST
+      path: /orders
+      expected_status: [201]
+      responses: [201]
+      required_headers: [Authorization]
+      required:
+        headers: [Authorization]
+    - name: health
+      method: GET
+      path: /health
+      expected_status: [200]
+      responses: [200]

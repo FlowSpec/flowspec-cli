@@ -1,0 +1,14 @@
+apiVersion: flowspec/v1
+kind: ServiceSpec
+metadata:
+  name: users
+spec:
+  endpoints:
+    - name: getUserById
+      method: GET
+      path: /users/{id}
+      expected_status: [200]
+      responses: [200]
+      required_headers: [Authorization]
+      required:
+        headers: [Authorization]
