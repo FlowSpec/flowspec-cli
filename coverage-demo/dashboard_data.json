@@ -1,0 +1,38 @@
+{
+    "generatedAt": "2025-08-16T10:58:42Z",
+    "qualityOverview": {
+        "overallScore": 82.5,
+        "coverageScore": 78.0,
+        "stabilityScore": 92.0,
+        "performanceScore": 88.0,
+        "qualityGrade": "B",
+        "status": "good",
+        "lastImprovement": "Coverage increased by 3.2%",
+        "nextMilestone": "Achieve A grade (90% quality score)"
+    },
+    "alerts": [
+        {
+            "type": "coverage",
+            "severity": "warning",
+            "title": "Coverage Below Threshold",
+            "message": "Module internal/engine coverage 75% below threshold 90%",
+            "timestamp": "2025-08-16T10:58:42Z"
+        }
+    ],
+    "recommendations": [
+        {
+            "category": "coverage",
+            "priority": "high",
+            "title": "Improve Test Coverage",
+            "description": "Current coverage 78% can be improved to meet 90% target",
+            "impact": "Higher code quality and reduced bug risk"
+        },
+        {
+            "category": "stability",
+            "priority": "medium",
+            "title": "Fix Flaky Tests",
+            "description": "Address 2 flaky tests to improve test reliability",
+            "impact": "More reliable CI/CD pipeline"
+        }
+    ]
+}

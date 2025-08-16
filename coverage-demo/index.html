@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowSpec Quality Dashboard - Demo</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .metric { text-align: center; padding: 20px; }
+        .metric-value { font-size: 2.5em; font-weight: bold; margin: 10px 0; color: #3b82f6; }
+        .metric-label { color: #666; font-size: 0.9em; }
+        .grade { font-size: 3em; font-weight: bold; padding: 20px; text-align: center; border-radius: 50%; width: 80px; height: 80px; margin: 0 auto; background: #3b82f6; color: white; }
+        .alert { padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #f59e0b; background: #fffbeb; color: #92400e; }
+        .recommendation { padding: 15px; margin: 10px 0; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #ef4444; }
+        .demo-note { background: #dbeafe; border: 1px solid #3b82f6; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="demo-note">
+            <h3>🚀 Demo Mode</h3>
+            <p>This is a demonstration of the FlowSpec Quality Monitoring Dashboard. In production, this would show real-time data from your test suite.</p>
+        </div>
+        
+        <div class="header">
+            <h1>🔍 FlowSpec Quality Dashboard</h1>
+            <p>Generated: Sat Aug 16 11:58:42 BST 2025</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>📊 Quality Overview</h2>
+                <div class="metric">
+                    <div class="grade">B</div>
+                    <div class="metric-value">82.5%</div>
+                    <div class="metric-label">Overall Quality Score</div>
+                </div>
+                <p><strong>Status:</strong> Good</p>
+                <p><strong>Next Milestone:</strong> Achieve A grade (90% quality score)</p>
+            </div>
+
+            <div class="card">
+                <h2>🧪 Test Coverage</h2>
+                <div class="metric">
+                    <div class="metric-value">78.0%</div>
+                    <div class="metric-label">Overall Coverage</div>
+                </div>
+                <p><strong>Trend:</strong> 📈 Improving (+3.2%)</p>
+            </div>
+
+            <div class="card">
+                <h2>🔍 Test Stability</h2>
+                <div class="metric">
+                    <div class="metric-value">92.0%</div>
+                    <div class="metric-label">Stability Score</div>
+                </div>
+                <p><strong>Flaky Tests:</strong> 2</p>
+            </div>
+
+            <div class="card">
+                <h2>⏱️ Performance</h2>
+                <div class="metric">
+                    <div class="metric-value">1m 30s</div>
+                    <div class="metric-label">Average Test Duration</div>
+                </div>
+                <p><strong>Performance Score:</strong> 88%</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🚨 Active Alerts</h2>
+            <div class="alert">
+                <h3>Coverage Below Threshold</h3>
+                <p>Module internal/engine coverage 75% below threshold 90%</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>💡 Recommendations</h2>
+            <div class="recommendation">
+                <h3>Improve Test Coverage <span style="font-size: 0.7em; color: #666;">[high priority]</span></h3>
+                <p>Current coverage 78% can be improved to meet 90% target</p>
+                <p><strong>Impact:</strong> Higher code quality and reduced bug risk</p>
+            </div>
+            <div class="recommendation">
+                <h3>Fix Flaky Tests <span style="font-size: 0.7em; color: #666;">[medium priority]</span></h3>
+                <p>Address 2 flaky tests to improve test reliability</p>
+                <p><strong>Impact:</strong> More reliable CI/CD pipeline</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📈 Features Implemented</h2>
+            <ul>
+                <li>✅ Test coverage analysis and reporting</li>
+                <li>✅ Coverage trend analysis over time</li>
+                <li>✅ Quality gate evaluation</li>
+                <li>✅ HTML and JSON coverage reports</li>
+                <li>✅ Test stability monitoring</li>
+                <li>✅ Flaky test detection</li>
+                <li>✅ Performance analysis</li>
+                <li>✅ Quality dashboard generation</li>
+                <li>✅ Automated alerts and recommendations</li>
+                <li>✅ GitHub Actions integration</li>
+                <li>✅ Continuous monitoring support</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

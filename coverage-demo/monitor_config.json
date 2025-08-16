@@ -1,0 +1,16 @@
+{
+    "coverageThreshold": 80,
+    "moduleThresholds": {
+        "internal/engine": 90,
+        "internal/models": 90,
+        "internal/renderer": 85,
+        "internal/parser": 80,
+        "internal/ingestor": 80,
+        "cmd/flowspec-cli": 80
+    },
+    "stabilityThreshold": 95,
+    "performanceThreshold": "2m",
+    "historyDays": 30,
+    "alertsEnabled": true,
+    "setupTimestamp": "2025-08-16T10:58:42Z"
+}

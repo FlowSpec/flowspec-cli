@@ -121,6 +121,13 @@ func (r *DefaultReportRenderer) GetLanguage() i18n.SupportedLanguage {
 func (r *DefaultReportRenderer) RenderHuman(report *models.AlignmentReport) (string, error) {
 	var output strings.Builder
 
+	// Check if this is CI mode (no timestamps, no colors, no performance, but detailed errors)
+	isCIMode := !r.config.ShowTimestamps && !r.config.ColorOutput && !r.config.ShowPerformance && r.config.ShowDetailedErrors
+
+	if isCIMode {
+		return r.renderCIMode(report)
+	}
+
 	// Header with enhanced styling
 	r.writeColoredHeader(&output, r.localizer.T("report.title"))
 	output.WriteString("==================================================\n\n")
@@ -277,6 +284,32 @@ func (r *DefaultReportRenderer) RenderHuman(report *models.AlignmentReport) (str
 			output.WriteString(fmt.Sprintf("\n%s🎉 恭喜！%s 所有 %d 个 ServiceSpec 都符合预期规约。\n",
 				r.getColor("green"), r.getColor("reset"), report.Summary.Total))
 		}
+	}
+
+	return output.String(), nil
+}
+
+// renderCIMode renders the report in CI-friendly format
+func (r *DefaultReportRenderer) renderCIMode(report *models.AlignmentReport) (string, error) {
+	var output strings.Builder
+
+	// CI mode: concise output without logo
+	if report.HasFailures() {
+		// Failure case
+		output.WriteString(fmt.Sprintf("❌ %d checks failed\n", report.Summary.Failed))
+		
+		// Show details for failures
+		if r.config.ShowDetailedErrors {
+			output.WriteString("\nDetails:\n")
+			for _, result := range report.Results {
+				if result.Status == models.StatusFailed {
+					output.WriteString(fmt.Sprintf("  - %s: %s\n", result.SpecOperationID, result.Status))
+				}
+			}
+		}
+	} else {
+		// Success case
+		output.WriteString(fmt.Sprintf("✅ %d checks passed\n", report.Summary.Success))
 	}
 
 	return output.String(), nil
@@ -839,19 +872,7 @@ func (r *DefaultReportRenderer) writeColoredSubsection(output *strings.Builder, 
 	output.WriteString(fmt.Sprintf("%s%s%s\n",
 		r.getColor("cyan"), text, r.getColor("reset")))
 }
-// NewCIReportRenderer creates a new report renderer optimized for CI environments
-func NewCIReportRenderer(language i18n.SupportedLanguage) *DefaultReportRenderer {
-	config := &RendererConfig{
-		ShowTimestamps:     false,
-		ShowPerformance:    true,
-		ShowDetailedErrors: false,
-		ColorOutput:        false,
-	}
-	return &DefaultReportRenderer{
-		config:    config,
-		localizer: i18n.NewLocalizer(language),
-	}
-}
+
 
 // GetExitCodeDescription returns a human-readable description of an exit code
 func (r *DefaultReportRenderer) GetExitCodeDescription(exitCode int) string {
@@ -879,4 +900,19 @@ func (r *DefaultReportRenderer) WriteArtifacts(report *models.AlignmentReport) e
 	// In a full implementation, this would write JSON summaries and JUnit XML files
 	// to an artifacts directory for CI/CD systems to consume
 	return nil
+}
+
+// NewCIReportRenderer creates a new report renderer optimized for CI environments
+func NewCIReportRenderer(language i18n.SupportedLanguage) *DefaultReportRenderer {
+	config := &RendererConfig{
+		ShowTimestamps:     false, // CI mode doesn't need timestamps
+		ShowPerformance:    false, // CI mode focuses on results
+		ShowDetailedErrors: true,  // CI mode needs detailed error info
+		ColorOutput:        false, // CI mode should avoid colors
+	}
+	
+	return &DefaultReportRenderer{
+		config:    config,
+		localizer: i18n.NewLocalizer(language),
+	}
 }

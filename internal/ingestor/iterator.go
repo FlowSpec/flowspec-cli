@@ -19,14 +19,15 @@ type Iterator[T any] interface {
 
 // ChannelIterator implements Iterator using a channel-based approach with backpressure control
 type ChannelIterator[T any] struct {
-	ch       <-chan T
-	errCh    <-chan error
-	current  T
-	err      error
-	closed   bool
-	ctx      context.Context
-	cancel   context.CancelFunc
-	mu       sync.RWMutex
+	ch            <-chan T
+	errCh         <-chan error
+	current       T
+	err           error
+	closed        bool
+	errorOccurred bool
+	ctx           context.Context
+	cancel        context.CancelFunc
+	mu            sync.RWMutex
 }
 
 // NewChannelIterator creates a new channel-based iterator with backpressure control
@@ -51,10 +52,21 @@ func (c *ChannelIterator[T]) Next() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	
-	if c.closed || c.err != nil {
+	if c.closed || c.err != nil || c.errorOccurred {
 		return false
 	}
 	
+	// First, check for any pending errors without blocking
+	select {
+	case err := <-c.errCh:
+		c.err = err
+		c.errorOccurred = true
+		// Don't return false immediately - check if there's data to process first
+	default:
+		// No error pending, continue
+	}
+	
+	// Try to get data from the channel
 	select {
 	case item, ok := <-c.ch:
 		if !ok {
@@ -63,12 +75,35 @@ func (c *ChannelIterator[T]) Next() bool {
 		}
 		c.current = item
 		return true
-	case err := <-c.errCh:
-		c.err = err
-		return false
 	case <-c.ctx.Done():
 		c.err = c.ctx.Err()
+		c.errorOccurred = true
 		return false
+	default:
+		// No data available
+		if c.errorOccurred {
+			// If we have an error and no more data, stop iteration
+			return false
+		}
+		
+		// Block waiting for either data or error
+		select {
+		case item, ok := <-c.ch:
+			if !ok {
+				c.closed = true
+				return false
+			}
+			c.current = item
+			return true
+		case err := <-c.errCh:
+			c.err = err
+			c.errorOccurred = true
+			return false
+		case <-c.ctx.Done():
+			c.err = c.ctx.Err()
+			c.errorOccurred = true
+			return false
+		}
 	}
 }
 

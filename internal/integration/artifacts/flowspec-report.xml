@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="FlowSpec Validation" tests="1" failures="1" time="0.000">
+  <testcase name="action-test-service-v1.0.0" classname="FlowSpec">
+    <failure message="Validation failed">
+      Failed assertions:
+      - Status code 500 does not match any expected values
+    </failure>
+  </testcase>
+</testsuite>

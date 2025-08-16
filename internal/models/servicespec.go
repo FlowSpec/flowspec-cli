@@ -17,6 +17,7 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -848,6 +849,14 @@ func (vd *ValidationDetail) String() string {
 
 // IsPassed returns true if the validation detail passed (expected equals actual)
 func (vd *ValidationDetail) IsPassed() bool {
+	// For status code validations, we need special handling because Expected is a complex object
+	// and Actual is a simple value, so they can't be compared with simple equality
+	if vd.Type == "status_code" {
+		// Check if the message indicates success or failure
+		return strings.Contains(vd.Message, "matches expected")
+	}
+	
+	// For other types, use simple equality
 	return vd.Expected == vd.Actual
 }
 
